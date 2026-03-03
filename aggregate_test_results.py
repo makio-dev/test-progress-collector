@@ -71,35 +71,156 @@ TEAM_PATTERNS = {
     "-U-": "運用",
 }
 
-# --- 日本の祝日（デフォルト: 2024-2026年） ---
+# --- 日本の祝日（デフォルト: 2024-2030年） ---
 DEFAULT_HOLIDAYS = [
     # 2024年
-    "2024/01/01", "2024/01/08", "2024/02/11", "2024/02/12", "2024/02/23",
-    "2024/03/20", "2024/04/29", "2024/05/03", "2024/05/04", "2024/05/05",
-    "2024/05/06", "2024/07/15", "2024/08/11", "2024/08/12", "2024/09/16",
-    "2024/09/22", "2024/09/23", "2024/10/14", "2024/11/03", "2024/11/04",
-    "2024/11/23", "2024/12/23",
+    "2024/01/01",  # 元日
+    "2024/01/08",  # 成人の日
+    "2024/02/11",  # 建国記念の日
+    "2024/02/12",  # 振替休日
+    "2024/02/23",  # 天皇誕生日
+    "2024/03/20",  # 春分の日
+    "2024/04/29",  # 昭和の日
+    "2024/05/03",  # 憲法記念日
+    "2024/05/04",  # みどりの日
+    "2024/05/05",  # こどもの日
+    "2024/05/06",  # 振替休日
+    "2024/07/15",  # 海の日
+    "2024/08/11",  # 山の日
+    "2024/08/12",  # 振替休日
+    "2024/09/16",  # 敬老の日
+    "2024/09/22",  # 秋分の日
+    "2024/09/23",  # 振替休日
+    "2024/10/14",  # スポーツの日
+    "2024/11/03",  # 文化の日
+    "2024/11/04",  # 振替休日
+    "2024/11/23",  # 勤労感謝の日
     # 2025年
-    "2025/01/01", "2025/01/13", "2025/02/11", "2025/02/23", "2025/02/24",
-    "2025/03/20", "2025/04/29", "2025/05/03", "2025/05/04", "2025/05/05",
-    "2025/05/06", "2025/07/21", "2025/08/11", "2025/09/15", "2025/09/23",
-    "2025/10/13", "2025/11/03", "2025/11/23", "2025/11/24",
+    "2025/01/01",  # 元日
+    "2025/01/13",  # 成人の日
+    "2025/02/11",  # 建国記念の日
+    "2025/02/23",  # 天皇誕生日
+    "2025/02/24",  # 振替休日
+    "2025/03/20",  # 春分の日
+    "2025/04/29",  # 昭和の日
+    "2025/05/03",  # 憲法記念日
+    "2025/05/04",  # みどりの日
+    "2025/05/05",  # こどもの日
+    "2025/05/06",  # 振替休日
+    "2025/07/21",  # 海の日
+    "2025/08/11",  # 山の日
+    "2025/09/15",  # 敬老の日
+    "2025/09/23",  # 秋分の日
+    "2025/10/13",  # スポーツの日
+    "2025/11/03",  # 文化の日
+    "2025/11/23",  # 勤労感謝の日
+    "2025/11/24",  # 振替休日
     # 2026年
-    "2026/01/01", "2026/01/12", "2026/02/11", "2026/02/23", "2026/03/20",
-    "2026/04/29", "2026/05/03", "2026/05/04", "2026/05/05", "2026/05/06",
-    "2026/07/20", "2026/08/11", "2026/09/21", "2026/09/22", "2026/09/23",
-    "2026/10/12", "2026/11/03", "2026/11/23",
+    "2026/01/01",  # 元日
+    "2026/01/12",  # 成人の日
+    "2026/02/11",  # 建国記念の日
+    "2026/02/23",  # 天皇誕生日
+    "2026/03/20",  # 春分の日
+    "2026/04/29",  # 昭和の日
+    "2026/05/03",  # 憲法記念日
+    "2026/05/04",  # みどりの日
+    "2026/05/05",  # こどもの日
+    "2026/05/06",  # 振替休日
+    "2026/07/20",  # 海の日
+    "2026/08/11",  # 山の日
+    "2026/09/21",  # 敬老の日
+    "2026/09/22",  # 国民の休日
+    "2026/09/23",  # 秋分の日
+    "2026/10/12",  # スポーツの日
+    "2026/11/03",  # 文化の日
+    "2026/11/23",  # 勤労感謝の日
+    # 2027年
+    "2027/01/01",  # 元日
+    "2027/01/11",  # 成人の日
+    "2027/02/11",  # 建国記念の日
+    "2027/02/23",  # 天皇誕生日
+    "2027/03/21",  # 春分の日
+    "2027/03/22",  # 振替休日
+    "2027/04/29",  # 昭和の日
+    "2027/05/03",  # 憲法記念日
+    "2027/05/04",  # みどりの日
+    "2027/05/05",  # こどもの日
+    "2027/07/19",  # 海の日
+    "2027/08/11",  # 山の日
+    "2027/09/20",  # 敬老の日
+    "2027/09/23",  # 秋分の日
+    "2027/10/11",  # スポーツの日
+    "2027/11/03",  # 文化の日
+    "2027/11/23",  # 勤労感謝の日
+    # 2028年
+    "2028/01/01",  # 元日
+    "2028/01/10",  # 成人の日
+    "2028/02/11",  # 建国記念の日
+    "2028/02/23",  # 天皇誕生日
+    "2028/03/20",  # 春分の日
+    "2028/04/29",  # 昭和の日
+    "2028/05/03",  # 憲法記念日
+    "2028/05/04",  # みどりの日
+    "2028/05/05",  # こどもの日
+    "2028/07/17",  # 海の日
+    "2028/08/11",  # 山の日
+    "2028/09/18",  # 敬老の日
+    "2028/09/22",  # 秋分の日
+    "2028/10/09",  # スポーツの日
+    "2028/11/03",  # 文化の日
+    "2028/11/23",  # 勤労感謝の日
+    # 2029年
+    "2029/01/01",  # 元日
+    "2029/01/08",  # 成人の日
+    "2029/02/11",  # 建国記念の日
+    "2029/02/12",  # 振替休日
+    "2029/02/23",  # 天皇誕生日
+    "2029/03/20",  # 春分の日
+    "2029/04/29",  # 昭和の日
+    "2029/04/30",  # 振替休日
+    "2029/05/03",  # 憲法記念日
+    "2029/05/04",  # みどりの日
+    "2029/05/05",  # こどもの日
+    "2029/07/16",  # 海の日
+    "2029/08/11",  # 山の日
+    "2029/09/17",  # 敬老の日
+    "2029/09/23",  # 秋分の日
+    "2029/09/24",  # 振替休日
+    "2029/10/08",  # スポーツの日
+    "2029/11/03",  # 文化の日
+    "2029/11/23",  # 勤労感謝の日
+    # 2030年
+    "2030/01/01",  # 元日
+    "2030/01/14",  # 成人の日
+    "2030/02/11",  # 建国記念の日
+    "2030/02/23",  # 天皇誕生日
+    "2030/03/20",  # 春分の日
+    "2030/04/29",  # 昭和の日
+    "2030/05/03",  # 憲法記念日
+    "2030/05/04",  # みどりの日
+    "2030/05/05",  # こどもの日
+    "2030/05/06",  # 振替休日
+    "2030/07/15",  # 海の日
+    "2030/08/11",  # 山の日
+    "2030/08/12",  # 振替休日
+    "2030/09/16",  # 敬老の日
+    "2030/09/23",  # 秋分の日
+    "2030/10/14",  # スポーツの日
+    "2030/11/03",  # 文化の日
+    "2030/11/04",  # 振替休日
+    "2030/11/23",  # 勤労感謝の日
 ]
 
 # ===================================================================
-#  スタイル定義
+#  スタイル定義（4色システム: 緑=完了, 黄=進行中, 赤=遅延, グレー=対象外）
 # ===================================================================
 
-TITLE_FONT = Font(name="游ゴシック", size=14, bold=True, color="1F4E79")
-TITLE_FILL = PatternFill(start_color="D6DCE4", end_color="D6DCE4", fill_type="solid")
+# --- 基本フォント・配置 ---
+TITLE_FONT = Font(name="游ゴシック", size=14, bold=True, color="333333")
+TITLE_FILL = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
 
 HEADER_FONT = Font(name="游ゴシック", size=11, bold=True, color="FFFFFF")
-HEADER_FILL = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+HEADER_FILL = PatternFill(start_color="505050", end_color="505050", fill_type="solid")  # ダークグレー
 HEADER_ALIGN = Alignment(horizontal="center", vertical="center", wrap_text=True)
 
 DATA_FONT = Font(name="游ゴシック", size=10)
@@ -112,21 +233,40 @@ THIN_BORDER = Border(
     top=Side(style="thin"), bottom=Side(style="thin"),
 )
 
-EVEN_FILL = PatternFill(start_color="D9E2F3", end_color="D9E2F3", fill_type="solid")
-TOTAL_FILL = PatternFill(start_color="B4C6E7", end_color="B4C6E7", fill_type="solid")
-CUMULATIVE_FILL = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+THICK_BORDER = Border(
+    left=Side(style="thin"), right=Side(style="thin"),
+    top=Side(style="medium"), bottom=Side(style="medium"),
+)
 
-# 進捗状況の色
-DONE_FILL = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")      # 緑：完了
-NOT_DONE_FILL = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")  # 赤：未完了
-DELAYED_FILL = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")   # 赤：遅延
-ONTRACK_FILL = PatternFill(start_color="BDD7EE", end_color="BDD7EE", fill_type="solid")   # 青：順調
-HOLIDAY_FILL = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")   # グレー：非営業日
-COMPLETED_ROW_FILL = PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid")  # グレー：完了行
+# --- 4色システム（信号機モデル） ---
+# 緑: 完了・安全
+COMPLETE_FILL = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+COMPLETE_FONT = Font(name="游ゴシック", size=10, bold=True, color="006100")
 
-# 基準日セルのスタイル
-REF_DATE_FONT = Font(name="游ゴシック", size=12, bold=True, color="C00000")
-REF_DATE_FILL = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
+# 黄: 注意・進行中（予定通り）
+WARNING_FILL = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+WARNING_FONT = Font(name="游ゴシック", size=10, bold=True, color="9C5700")
+
+# 赤: 危険・遅延
+DANGER_FILL = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+DANGER_FONT = Font(name="游ゴシック", size=10, bold=True, color="9C0006")
+
+# グレー: 対象外・未来・非営業日
+NEUTRAL_FILL = PatternFill(start_color="F2F2F2", end_color="F2F2F2", fill_type="solid")
+NEUTRAL_FONT = Font(name="游ゴシック", size=10, color="808080")
+
+# --- 合計行（罫線で区切り、薄いグレー背景） ---
+TOTAL_FILL = PatternFill(start_color="F0F0F0", end_color="F0F0F0", fill_type="solid")
+
+# --- 基準日セルのスタイル ---
+REF_DATE_FONT = Font(name="游ゴシック", size=12, bold=True, color="FFFFFF")
+REF_DATE_FILL = PatternFill(start_color="505050", end_color="505050", fill_type="solid")
+
+# --- ダッシュボード用スタイル ---
+DASHBOARD_TITLE_FONT = Font(name="游ゴシック", size=18, bold=True, color="333333")
+DASHBOARD_SECTION_FONT = Font(name="游ゴシック", size=12, bold=True, color="505050")
+DASHBOARD_VALUE_FONT = Font(name="游ゴシック", size=24, bold=True)
+DASHBOARD_LABEL_FONT = Font(name="游ゴシック", size=10, color="666666")
 
 
 # ===================================================================
@@ -395,17 +535,37 @@ class WizardApp(tk.Tk):
     def select_output(self):
         """出力ファイル選択ダイアログ"""
         if self.update_mode.get() == "new":
+            # 新規作成モード: ファイル名を入力して保存先を選択
             path = filedialog.asksaveasfilename(
                 title="保存先を選択",
                 defaultextension=".xlsx",
                 filetypes=[("Excel ファイル", "*.xlsx")],
-                initialfile="テスト進捗集計.xlsx"
+                initialfile="テスト進捗集計.xlsx",
+                confirmoverwrite=False  # OS標準の上書き確認を無効化
             )
+            if path:
+                # 既存ファイルの場合は日本語で確認
+                if os.path.exists(path):
+                    confirm = messagebox.askyesno(
+                        "上書き確認",
+                        f"ファイルが既に存在します。\n\n{os.path.basename(path)}\n\n上書きしてもよろしいですか？"
+                    )
+                    if not confirm:
+                        return
         else:
+            # 更新モード: 既存ファイルを選択
             path = filedialog.askopenfilename(
                 title="更新するファイルを選択",
                 filetypes=[("Excel ファイル", "*.xlsx")]
             )
+            if path:
+                # 更新モードでも確認
+                confirm = messagebox.askyesno(
+                    "更新確認",
+                    f"以下のファイルを最新データで上書きします。\n\n{os.path.basename(path)}\n\nよろしいですか？"
+                )
+                if not confirm:
+                    return
 
         if path:
             self.output_path.set(path)
@@ -574,20 +734,25 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
                 continue
             # 旧形式のキャッシュは無視して再処理
 
-        print(f"  📄 {relative_path}")
-
         try:
             wb = openpyxl.load_workbook(filepath, data_only=True)
+
+            # ITBで始まるシートがあるかチェック
+            target_sheets = [s for s in wb.sheetnames if s.upper().startswith(SHEET_PREFIX.upper())]
+            if not target_sheets:
+                # 対象シートがない場合はスキップ（関係ないExcelファイル）
+                wb.close()
+                print(f"  ⏭ {relative_path} (対象シートなし - スキップ)")
+                continue
+
+            print(f"  📄 {relative_path}")
             file_count += 1
 
             # ファイル名からチーム名を識別
             team_name = identify_team(filename)
             file_records = []
 
-            for ws_name in wb.sheetnames:
-                if not ws_name.upper().startswith(SHEET_PREFIX.upper()):
-                    continue
-
+            for ws_name in target_sheets:
                 ws = wb[ws_name]
                 sheet_count += 1
                 case_count = 0
@@ -603,8 +768,7 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
                     kensho_jisseki = ws.cell(row=row, column=COL_KENSHO_JISSEKI).value
 
                     record = {
-                        "ファイル名": relative_path,  # 相対パスで記録
-                        "ファイルパス": filepath,
+                        "ファイル名": filepath,  # フルパスで記録
                         "シート名": ws_name,
                         "チーム名": team_name,
                         "テストID": str(test_id),
@@ -642,7 +806,7 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
 # ===================================================================
 
 def write_excel(records, output_path, holidays=None):
-    """明細シート＋進捗サマリー（チーム別）＋祝日マスタをExcelに出力"""
+    """ダッシュボード＋明細シート＋進捗サマリー（チーム別）＋祝日マスタをExcelに出力"""
 
     if holidays is None:
         holidays = DEFAULT_HOLIDAYS
@@ -666,6 +830,14 @@ def write_excel(records, output_path, holidays=None):
     # チームリスト（ALL + 実際のチーム）
     teams_in_data = sorted(team_records.keys())
 
+    # --- ダッシュボードシート（先頭に配置） ---
+    ws_dashboard = wb.create_sheet("ダッシュボード")
+    _write_dashboard_sheet(ws_dashboard, records, team_records, detail_data_start_row)
+
+    # --- 遅延一覧シート ---
+    ws_delayed = wb.create_sheet("要対応一覧")
+    _write_delayed_sheet(ws_delayed, records, detail_data_start_row, len(records))
+
     # --- 進捗サマリーシート（ALL） ---
     ws_summary_all = wb.create_sheet("進捗サマリー_ALL")
     _write_summary_sheet(ws_summary_all, records, detail_data_start_row, len(records), holidays, "ALL")
@@ -677,14 +849,427 @@ def write_excel(records, output_path, holidays=None):
         ws_team = wb.create_sheet(sheet_name)
         _write_summary_sheet(ws_team, team_recs, detail_data_start_row, len(records), holidays, team_name)
 
-    # シートの順序を調整（進捗サマリー_ALLを先頭に）
-    wb.move_sheet(ws_summary_all, offset=-(len(teams_in_data) + 2))
+    # シートの順序を調整
+    # 目標の順序: ダッシュボード, 要対応一覧, 進捗サマリー_ALL, チーム別..., 明細, 祝日マスタ
+    sheet_order = ["ダッシュボード", "要対応一覧", "進捗サマリー_ALL"]
+    for team_name in teams_in_data:
+        sheet_order.append(f"進捗サマリー_{team_name}")
+    sheet_order.extend(["明細", "祝日マスタ"])
+
+    # シートを並び替え
+    for i, sheet_name in enumerate(sheet_order):
+        if sheet_name in wb.sheetnames:
+            wb.move_sheet(sheet_name, offset=i - wb.sheetnames.index(sheet_name))
 
     # --- 保存 ---
     wb.save(output_path)
     print(f"\n  ✅ 出力完了: {output_path}")
+    print(f"     ダッシュボード: 本日のサマリー")
     print(f"     明細シート: {len(records)}件")
     print(f"     サマリーシート: ALL + {len(teams_in_data)}チーム")
+
+
+def _write_dashboard_sheet(ws, records, team_records, detail_start_row):
+    """ダッシュボードシート（5秒で状況把握）を作成"""
+
+    today = datetime.now()
+    today_str = today.strftime("%Y/%m/%d")
+    weekday_names = ["月", "火", "水", "木", "金", "土", "日"]
+    weekday_str = weekday_names[today.weekday()]
+
+    # 集計データの計算
+    total_records = len(records)
+    detail_last_row = detail_start_row + total_records - 1
+
+    # --- タイトルエリア ---
+    ws.merge_cells('A1:H1')
+    title_cell = ws['A1']
+    title_cell.value = f"テスト進捗ダッシュボード"
+    title_cell.font = DASHBOARD_TITLE_FONT
+    title_cell.alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 35
+
+    # 基準日
+    ws.merge_cells('A2:H2')
+    ws['A2'] = f"基準日: {today_str} ({weekday_str})"
+    ws['A2'].font = Font(name="游ゴシック", size=14, bold=True, color="505050")
+
+    # --- セクション1: 全体進捗 ---
+    row = 4
+    ws.merge_cells(f'A{row}:H{row}')
+    ws[f'A{row}'] = "■ 全体進捗"
+    ws[f'A{row}'].font = DASHBOARD_SECTION_FONT
+    ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
+    ws.row_dimensions[row].height = 22
+
+    # ヘッダー行
+    row += 1
+    headers = ["項目", "総件数", "完了", "遅延", "予定", "進捗率", "状態"]
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+    ws.row_dimensions[row].height = 22
+
+    # 実施者行（数式で明細シートを参照）
+    row += 1
+    ws.cell(row=row, column=1, value="実施").font = Font(name="游ゴシック", size=11, bold=True)
+    ws.cell(row=row, column=1).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=1).border = THIN_BORDER
+
+    # 総件数 = 予定日が入っているレコード数
+    ws.cell(row=row, column=2, value=f'=COUNTA(明細!$F${detail_start_row}:$F${detail_last_row})').border = THIN_BORDER
+    ws.cell(row=row, column=2).alignment = DATA_ALIGN_CENTER
+    # 完了 = 実績日が入っているレコード数
+    ws.cell(row=row, column=3, value=f'=COUNTA(明細!$G${detail_start_row}:$G${detail_last_row})').border = THIN_BORDER
+    ws.cell(row=row, column=3).alignment = DATA_ALIGN_CENTER
+    # 遅延 = H列が"遅延"のレコード数
+    ws.cell(row=row, column=4, value=f'=COUNTIF(明細!$H${detail_start_row}:$H${detail_last_row},"遅延")').border = THIN_BORDER
+    ws.cell(row=row, column=4).alignment = DATA_ALIGN_CENTER
+    # 予定 = H列が"予定"のレコード数
+    ws.cell(row=row, column=5, value=f'=COUNTIF(明細!$H${detail_start_row}:$H${detail_last_row},"予定")').border = THIN_BORDER
+    ws.cell(row=row, column=5).alignment = DATA_ALIGN_CENTER
+    # 進捗率
+    ws.cell(row=row, column=6, value=f'=IF(B{row}=0,0,C{row}/B{row})').border = THIN_BORDER
+    ws.cell(row=row, column=6).number_format = "0%"
+    ws.cell(row=row, column=6).alignment = DATA_ALIGN_CENTER
+    # 状態（数式）
+    ws.cell(row=row, column=7, value=f'=IF(D{row}>0,"遅延あり",IF(F{row}>=1,"完了","進行中"))').border = THIN_BORDER
+    ws.cell(row=row, column=7).alignment = DATA_ALIGN_CENTER
+
+    jisshi_row = row
+
+    # 検証者行
+    row += 1
+    ws.cell(row=row, column=1, value="検証").font = Font(name="游ゴシック", size=11, bold=True)
+    ws.cell(row=row, column=1).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=1).border = THIN_BORDER
+
+    ws.cell(row=row, column=2, value=f'=COUNTA(明細!$I${detail_start_row}:$I${detail_last_row})').border = THIN_BORDER
+    ws.cell(row=row, column=2).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=3, value=f'=COUNTA(明細!$J${detail_start_row}:$J${detail_last_row})').border = THIN_BORDER
+    ws.cell(row=row, column=3).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=4, value=f'=COUNTIF(明細!$K${detail_start_row}:$K${detail_last_row},"遅延")').border = THIN_BORDER
+    ws.cell(row=row, column=4).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=5, value=f'=COUNTIF(明細!$K${detail_start_row}:$K${detail_last_row},"予定")').border = THIN_BORDER
+    ws.cell(row=row, column=5).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=6, value=f'=IF(B{row}=0,0,C{row}/B{row})').border = THIN_BORDER
+    ws.cell(row=row, column=6).number_format = "0%"
+    ws.cell(row=row, column=6).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=7, value=f'=IF(D{row}>0,"遅延あり",IF(F{row}>=1,"完了","進行中"))').border = THIN_BORDER
+    ws.cell(row=row, column=7).alignment = DATA_ALIGN_CENTER
+
+    kensho_row = row
+
+    # 状態列（G列）の条件付き書式
+    for r in [jisshi_row, kensho_row]:
+        ws.conditional_formatting.add(
+            f"G{r}",
+            FormulaRule(formula=[f'G{r}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
+        )
+        ws.conditional_formatting.add(
+            f"G{r}",
+            FormulaRule(formula=[f'G{r}="遅延あり"'], fill=DANGER_FILL, font=DANGER_FONT)
+        )
+        ws.conditional_formatting.add(
+            f"G{r}",
+            FormulaRule(formula=[f'G{r}="進行中"'], fill=WARNING_FILL, font=WARNING_FONT)
+        )
+
+    # 遅延列（D列）の条件付き書式（0より大きければ赤）
+    for r in [jisshi_row, kensho_row]:
+        ws.conditional_formatting.add(
+            f"D{r}",
+            FormulaRule(formula=[f'D{r}>0'], fill=DANGER_FILL, font=DANGER_FONT)
+        )
+
+    # --- セクション2: チーム別状況（実施/検証別） ---
+    row += 2
+    ws.merge_cells(f'A{row}:K{row}')
+    ws[f'A{row}'] = "■ チーム別状況"
+    ws[f'A{row}'].font = DASHBOARD_SECTION_FONT
+    ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
+    ws.row_dimensions[row].height = 22
+
+    row += 1
+    team_headers = ["チーム", "総件数", "実施_完了", "実施_遅延", "実施_進捗率", "検証_完了", "検証_遅延", "検証_進捗率", "実施状態", "検証状態"]
+    for col, header in enumerate(team_headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+
+    team_data_start = row + 1
+    for team_name in sorted(team_records.keys()):
+        row += 1
+
+        # A: チーム名
+        ws.cell(row=row, column=1, value=team_name).border = THIN_BORDER
+        ws.cell(row=row, column=1).alignment = DATA_ALIGN_CENTER
+        ws.cell(row=row, column=1).font = Font(name="游ゴシック", size=10, bold=True)
+
+        # B: 総件数（実施予定が入っているレコード数）
+        ws.cell(row=row, column=2, value=f'=COUNTIFS(明細!$D${detail_start_row}:$D${detail_last_row},A{row},明細!$F${detail_start_row}:$F${detail_last_row},"<>")').border = THIN_BORDER
+        ws.cell(row=row, column=2).alignment = DATA_ALIGN_CENTER
+
+        # C: 実施_完了数
+        ws.cell(row=row, column=3, value=f'=COUNTIFS(明細!$D${detail_start_row}:$D${detail_last_row},A{row},明細!$H${detail_start_row}:$H${detail_last_row},"完了")').border = THIN_BORDER
+        ws.cell(row=row, column=3).alignment = DATA_ALIGN_CENTER
+
+        # D: 実施_遅延数
+        ws.cell(row=row, column=4, value=f'=COUNTIFS(明細!$D${detail_start_row}:$D${detail_last_row},A{row},明細!$H${detail_start_row}:$H${detail_last_row},"遅延")').border = THIN_BORDER
+        ws.cell(row=row, column=4).alignment = DATA_ALIGN_CENTER
+
+        # E: 実施_進捗率
+        ws.cell(row=row, column=5, value=f'=IF(B{row}=0,0,C{row}/B{row})').border = THIN_BORDER
+        ws.cell(row=row, column=5).number_format = "0%"
+        ws.cell(row=row, column=5).alignment = DATA_ALIGN_CENTER
+
+        # F: 検証_完了数
+        ws.cell(row=row, column=6, value=f'=COUNTIFS(明細!$D${detail_start_row}:$D${detail_last_row},A{row},明細!$K${detail_start_row}:$K${detail_last_row},"完了")').border = THIN_BORDER
+        ws.cell(row=row, column=6).alignment = DATA_ALIGN_CENTER
+
+        # G: 検証_遅延数
+        ws.cell(row=row, column=7, value=f'=COUNTIFS(明細!$D${detail_start_row}:$D${detail_last_row},A{row},明細!$K${detail_start_row}:$K${detail_last_row},"遅延")').border = THIN_BORDER
+        ws.cell(row=row, column=7).alignment = DATA_ALIGN_CENTER
+
+        # H: 検証_進捗率
+        ws.cell(row=row, column=8, value=f'=IF(B{row}=0,0,F{row}/B{row})').border = THIN_BORDER
+        ws.cell(row=row, column=8).number_format = "0%"
+        ws.cell(row=row, column=8).alignment = DATA_ALIGN_CENTER
+
+        # I: 実施状態
+        ws.cell(row=row, column=9, value=f'=IF(D{row}>0,"遅延あり",IF(E{row}>=1,"完了","進行中"))').border = THIN_BORDER
+        ws.cell(row=row, column=9).alignment = DATA_ALIGN_CENTER
+
+        # J: 検証状態
+        ws.cell(row=row, column=10, value=f'=IF(G{row}>0,"遅延あり",IF(H{row}>=1,"完了","進行中"))').border = THIN_BORDER
+        ws.cell(row=row, column=10).alignment = DATA_ALIGN_CENTER
+
+    team_data_end = row
+
+    # チーム別の条件付き書式（実施状態: I列、検証状態: J列）
+    for status_col in ['I', 'J']:
+        ws.conditional_formatting.add(
+            f"{status_col}{team_data_start}:{status_col}{team_data_end}",
+            FormulaRule(formula=[f'{status_col}{team_data_start}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
+        )
+        ws.conditional_formatting.add(
+            f"{status_col}{team_data_start}:{status_col}{team_data_end}",
+            FormulaRule(formula=[f'{status_col}{team_data_start}="遅延あり"'], fill=DANGER_FILL, font=DANGER_FONT)
+        )
+        ws.conditional_formatting.add(
+            f"{status_col}{team_data_start}:{status_col}{team_data_end}",
+            FormulaRule(formula=[f'{status_col}{team_data_start}="進行中"'], fill=WARNING_FILL, font=WARNING_FONT)
+        )
+
+    # 遅延数の条件付き書式（D列: 実施遅延、G列: 検証遅延）
+    for delay_col in ['D', 'G']:
+        ws.conditional_formatting.add(
+            f"{delay_col}{team_data_start}:{delay_col}{team_data_end}",
+            FormulaRule(formula=[f'{delay_col}{team_data_start}>0'], fill=DANGER_FILL, font=DANGER_FONT)
+        )
+
+    # --- セクション3: 本日の予定 ---
+    row += 2
+    ws.merge_cells(f'A{row}:H{row}')
+    ws[f'A{row}'] = "■ 本日の予定"
+    ws[f'A{row}'].font = DASHBOARD_SECTION_FONT
+    ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
+    ws.row_dimensions[row].height = 22
+
+    row += 1
+    today_headers = ["項目", "予定", "完了", "残り"]
+    for col, header in enumerate(today_headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+
+    # 今日の日付をセルに格納（参照用）- I2に配置（A2:H2はマージ済み）
+    ws['I2'] = today_str
+    ws['I2'].font = Font(name="游ゴシック", size=1, color="FFFFFF")  # 隠す
+    ws.column_dimensions['I'].hidden = True  # I列を非表示
+
+    row += 1
+    ws.cell(row=row, column=1, value="実施").font = Font(name="游ゴシック", size=11, bold=True)
+    ws.cell(row=row, column=1).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=1).border = THIN_BORDER
+    ws.cell(row=row, column=2, value=f'=COUNTIF(明細!$F${detail_start_row}:$F${detail_last_row},$I$2)').border = THIN_BORDER
+    ws.cell(row=row, column=2).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=3, value=f'=COUNTIFS(明細!$F${detail_start_row}:$F${detail_last_row},$I$2,明細!$G${detail_start_row}:$G${detail_last_row},"<>")').border = THIN_BORDER
+    ws.cell(row=row, column=3).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=4, value=f'=B{row}-C{row}').border = THIN_BORDER
+    ws.cell(row=row, column=4).alignment = DATA_ALIGN_CENTER
+
+    row += 1
+    ws.cell(row=row, column=1, value="検証").font = Font(name="游ゴシック", size=11, bold=True)
+    ws.cell(row=row, column=1).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=1).border = THIN_BORDER
+    ws.cell(row=row, column=2, value=f'=COUNTIF(明細!$I${detail_start_row}:$I${detail_last_row},$I$2)').border = THIN_BORDER
+    ws.cell(row=row, column=2).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=3, value=f'=COUNTIFS(明細!$I${detail_start_row}:$I${detail_last_row},$I$2,明細!$J${detail_start_row}:$J${detail_last_row},"<>")').border = THIN_BORDER
+    ws.cell(row=row, column=3).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=4, value=f'=B{row}-C{row}').border = THIN_BORDER
+    ws.cell(row=row, column=4).alignment = DATA_ALIGN_CENTER
+
+    # --- 列幅設定 ---
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 10
+    ws.column_dimensions['C'].width = 10
+    ws.column_dimensions['D'].width = 10
+    ws.column_dimensions['E'].width = 10
+    ws.column_dimensions['F'].width = 10
+    ws.column_dimensions['G'].width = 12
+    ws.column_dimensions['H'].width = 12
+
+    # 印刷設定
+    ws.print_title_rows = '1:2'
+
+
+def _write_delayed_sheet(ws, records, detail_start_row, total_records):
+    """要対応一覧シート（遅延レコードの抽出）を作成"""
+
+    detail_last_row = detail_start_row + total_records - 1
+    today = datetime.now()
+    today_str = today.strftime("%Y/%m/%d")
+
+    # 遅延レコードを抽出
+    delayed_records = []
+    for rec in records:
+        jisshi_yotei = _to_date_obj(rec["実施者_予定"])
+        jisshi_jisseki = rec["実施者_実績"]
+        kensho_yotei = _to_date_obj(rec["検証者_予定"])
+        kensho_jisseki = rec["検証者_実績"]
+
+        # 実施遅延: 予定日<=今日 かつ 実績なし
+        jisshi_delayed = jisshi_yotei and jisshi_yotei <= today and not jisshi_jisseki
+        # 検証遅延: 予定日<=今日 かつ 実績なし
+        kensho_delayed = kensho_yotei and kensho_yotei <= today and not kensho_jisseki
+
+        if jisshi_delayed or kensho_delayed:
+            rec_copy = rec.copy()
+            rec_copy['実施遅延'] = jisshi_delayed
+            rec_copy['検証遅延'] = kensho_delayed
+            delayed_records.append(rec_copy)
+
+    # タイトル
+    ws.merge_cells('A1:H1')
+    title_cell = ws['A1']
+    title_cell.value = f"要対応一覧（{len(delayed_records)}件）"
+    title_cell.font = Font(name="游ゴシック", size=14, bold=True, color="8B0000")
+    title_cell.fill = PatternFill(start_color="FFE5E5", end_color="FFE5E5", fill_type="solid")
+    title_cell.alignment = Alignment(horizontal="left", vertical="center")
+    ws.row_dimensions[1].height = 30
+
+    # 基準日
+    ws['A2'] = f"基準日: {today_str}"
+    ws['A2'].font = Font(name="游ゴシック", size=11, color="666666")
+
+    # サマリー
+    row = 4
+    ws.merge_cells(f'A{row}:H{row}')
+    ws[f'A{row}'] = "■ 遅延サマリー"
+    ws[f'A{row}'].font = DASHBOARD_SECTION_FONT
+    ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
+
+    row += 1
+    summary_headers = ["項目", "遅延件数"]
+    for col, header in enumerate(summary_headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+
+    row += 1
+    ws.cell(row=row, column=1, value="実施者_遅延").border = THIN_BORDER
+    ws.cell(row=row, column=1).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=2, value=f'=COUNTIF(明細!$H${detail_start_row}:$H${detail_last_row},"遅延")').border = THIN_BORDER
+    ws.cell(row=row, column=2).alignment = DATA_ALIGN_CENTER
+    ws.conditional_formatting.add(f"B{row}", FormulaRule(formula=[f'B{row}>0'], fill=DANGER_FILL, font=DANGER_FONT))
+
+    row += 1
+    ws.cell(row=row, column=1, value="検証者_遅延").border = THIN_BORDER
+    ws.cell(row=row, column=1).alignment = DATA_ALIGN_CENTER
+    ws.cell(row=row, column=2, value=f'=COUNTIF(明細!$K${detail_start_row}:$K${detail_last_row},"遅延")').border = THIN_BORDER
+    ws.cell(row=row, column=2).alignment = DATA_ALIGN_CENTER
+    ws.conditional_formatting.add(f"B{row}", FormulaRule(formula=[f'B{row}>0'], fill=DANGER_FILL, font=DANGER_FONT))
+
+    # 遅延一覧
+    row += 2
+    ws.merge_cells(f'A{row}:H{row}')
+    ws[f'A{row}'] = "■ 遅延一覧"
+    ws[f'A{row}'].font = DASHBOARD_SECTION_FONT
+    ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
+
+    row += 1
+    list_headers = ["No.", "チーム名", "シート名", "テストID", "実施予定", "実施実績", "検証予定", "検証実績"]
+    for col, header in enumerate(list_headers, 1):
+        cell = ws.cell(row=row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = PatternFill(start_color="8B0000", end_color="8B0000", fill_type="solid")
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+
+    data_start = row + 1
+    for i, rec in enumerate(delayed_records):
+        row += 1
+        values = [
+            i + 1,
+            rec["チーム名"],
+            rec["シート名"],
+            rec["テストID"],
+            rec["実施者_予定"] or "－",
+            rec["実施者_実績"] or "未完了",
+            rec["検証者_予定"] or "－",
+            rec["検証者_実績"] or "未完了",
+        ]
+        for col, val in enumerate(values, 1):
+            cell = ws.cell(row=row, column=col, value=val)
+            cell.font = DATA_FONT
+            cell.border = THIN_BORDER
+            cell.alignment = DATA_ALIGN_CENTER
+
+            # 遅延中のセルを強調
+            if col == 6 and rec['実施遅延']:  # 実施実績
+                cell.fill = DANGER_FILL
+                cell.font = DANGER_FONT
+            elif col == 8 and rec['検証遅延']:  # 検証実績
+                cell.fill = DANGER_FILL
+                cell.font = DANGER_FONT
+
+    # テーブル作成
+    if delayed_records:
+        data_end = data_start + len(delayed_records) - 1
+        table_ref = f"A{data_start - 1}:H{data_end}"
+        try:
+            table = Table(displayName="遅延一覧テーブル", ref=table_ref)
+            style = TableStyleInfo(
+                name="TableStyleMedium3",
+                showFirstColumn=False,
+                showLastColumn=False,
+                showRowStripes=True,
+                showColumnStripes=False
+            )
+            table.tableStyleInfo = style
+            ws.add_table(table)
+        except Exception:
+            pass  # テーブル作成に失敗しても続行
+
+    # 遅延がない場合
+    if not delayed_records:
+        row += 1
+        ws.cell(row=row, column=1, value="遅延しているテストケースはありません").font = Font(name="游ゴシック", size=11, color="2E7D32", italic=True)
+
+    # 列幅設定
+    delayed_widths = [6, 12, 18, 16, 12, 12, 12, 12]
+    for i, w in enumerate(delayed_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = w
 
 
 def _write_holiday_sheet(ws, holidays):
@@ -817,63 +1402,55 @@ def _write_detail_sheet(ws, records):
         table.tableStyleInfo = style
         ws.add_table(table)
 
-    # 条件付き書式: 状況列（H, K, L列）
+    # 条件付き書式: 状況列（H, K, L列）- 4色システム
     last_row = data_start_row + len(records) - 1 if records else data_start_row
 
     # 完了 = 緑
-    green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
-    green_font = Font(color="006100")
     ws.conditional_formatting.add(
         f"H{data_start_row}:H{last_row}",
-        FormulaRule(formula=[f'H{data_start_row}="完了"'], fill=green_fill, font=green_font)
+        FormulaRule(formula=[f'H{data_start_row}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
     )
     ws.conditional_formatting.add(
         f"K{data_start_row}:K{last_row}",
-        FormulaRule(formula=[f'K{data_start_row}="完了"'], fill=green_fill, font=green_font)
+        FormulaRule(formula=[f'K{data_start_row}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
     )
     ws.conditional_formatting.add(
         f"L{data_start_row}:L{last_row}",
-        FormulaRule(formula=[f'L{data_start_row}="完了"'], fill=green_fill, font=green_font)
+        FormulaRule(formula=[f'L{data_start_row}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
     )
 
     # 遅延 = 赤
-    red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
-    red_font = Font(color="9C0006")
     ws.conditional_formatting.add(
         f"H{data_start_row}:H{last_row}",
-        FormulaRule(formula=[f'H{data_start_row}="遅延"'], fill=red_fill, font=red_font)
+        FormulaRule(formula=[f'H{data_start_row}="遅延"'], fill=DANGER_FILL, font=DANGER_FONT)
     )
     ws.conditional_formatting.add(
         f"K{data_start_row}:K{last_row}",
-        FormulaRule(formula=[f'K{data_start_row}="遅延"'], fill=red_fill, font=red_font)
+        FormulaRule(formula=[f'K{data_start_row}="遅延"'], fill=DANGER_FILL, font=DANGER_FONT)
     )
     ws.conditional_formatting.add(
         f"L{data_start_row}:L{last_row}",
-        FormulaRule(formula=[f'L{data_start_row}="遅延"'], fill=red_fill, font=red_font)
+        FormulaRule(formula=[f'L{data_start_row}="遅延"'], fill=DANGER_FILL, font=DANGER_FONT)
     )
 
-    # 予定 = 青
-    blue_fill = PatternFill(start_color="BDD7EE", end_color="BDD7EE", fill_type="solid")
-    blue_font = Font(color="1F4E79")
+    # 予定 = グレー
     ws.conditional_formatting.add(
         f"H{data_start_row}:H{last_row}",
-        FormulaRule(formula=[f'H{data_start_row}="予定"'], fill=blue_fill, font=blue_font)
+        FormulaRule(formula=[f'H{data_start_row}="予定"'], fill=NEUTRAL_FILL, font=NEUTRAL_FONT)
     )
     ws.conditional_formatting.add(
         f"K{data_start_row}:K{last_row}",
-        FormulaRule(formula=[f'K{data_start_row}="予定"'], fill=blue_fill, font=blue_font)
+        FormulaRule(formula=[f'K{data_start_row}="予定"'], fill=NEUTRAL_FILL, font=NEUTRAL_FONT)
     )
 
-    # 進行中 = オレンジ
-    orange_fill = PatternFill(start_color="FCE4D6", end_color="FCE4D6", fill_type="solid")
-    orange_font = Font(color="C65911")
+    # 進行中 = 黄
     ws.conditional_formatting.add(
         f"L{data_start_row}:L{last_row}",
-        FormulaRule(formula=[f'L{data_start_row}="進行中"'], fill=orange_fill, font=orange_font)
+        FormulaRule(formula=[f'L{data_start_row}="進行中"'], fill=WARNING_FILL, font=WARNING_FONT)
     )
 
     # 列幅設定
-    detail_widths = [6, 28, 18, 12, 16, 12, 12, 10, 12, 12, 10, 10]
+    detail_widths = [6, 60, 18, 12, 16, 12, 12, 10, 12, 12, 10, 10]  # ファイル名列を60に拡大（フルパス対応）
     for i, w in enumerate(detail_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
@@ -978,31 +1555,31 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
         jisshi_yotei = f'=COUNTIFS(明細!$F${detail_start_row}:$F${detail_last_row},A{row}{team_condition})'
         # 実施者_実績 (G列=7)
         jisshi_jisseki = f'=COUNTIFS(明細!$G${detail_start_row}:$G${detail_last_row},A{row}{team_condition})'
-        # 実施者_消化率
-        jisshi_rate = f'=IF(D{row}=0,0,E{row}/D{row})'
+        # 実施者_消化率（予定0なら空白）
+        jisshi_rate = f'=IF(D{row}=0,"",E{row}/D{row})'
         # 実施者_予定累計
         jisshi_yotei_cum = f'=SUM($D${data_start_row}:D{row})'
         # 実施者_実績累計
         jisshi_jisseki_cum = f'=SUM($E${data_start_row}:E{row})'
-        # 実施者_累計消化率
-        jisshi_cum_rate = f'=IF(G{row}=0,0,H{row}/G{row})'
-        # 実施_判定（累計実績>=累計予定なら順調、累計消化率100%なら完了、日付>基準日なら予定）
-        jisshi_status = f'=IF(A{row}>$U$2,"予定",IF(I{row}>=1,"完了",IF(H{row}>=G{row},"順調","遅延")))'
+        # 実施者_累計消化率（予定累計0なら空白）
+        jisshi_cum_rate = f'=IF(G{row}=0,"",H{row}/G{row})'
+        # 実施_判定（日付>基準日なら予定、累計予定0なら対象外、累計消化率100%なら完了、累計実績>=累計予定なら順調、それ以外は遅延）
+        jisshi_status = f'=IF(A{row}>$U$2,"予定",IF(G{row}=0,"－",IF(I{row}>=1,"完了",IF(H{row}>=G{row},"順調","遅延"))))'
 
         # 検証者_予定 (I列=9 in 明細)
         kensho_yotei = f'=COUNTIFS(明細!$I${detail_start_row}:$I${detail_last_row},A{row}{team_condition})'
         # 検証者_実績 (J列=10 in 明細)
         kensho_jisseki = f'=COUNTIFS(明細!$J${detail_start_row}:$J${detail_last_row},A{row}{team_condition})'
-        # 検証者_消化率
-        kensho_rate = f'=IF(K{row}=0,0,L{row}/K{row})'
+        # 検証者_消化率（予定0なら空白）
+        kensho_rate = f'=IF(K{row}=0,"",L{row}/K{row})'
         # 検証者_予定累計
         kensho_yotei_cum = f'=SUM($K${data_start_row}:K{row})'
         # 検証者_実績累計
         kensho_jisseki_cum = f'=SUM($L${data_start_row}:L{row})'
-        # 検証者_累計消化率
-        kensho_cum_rate = f'=IF(N{row}=0,0,O{row}/N{row})'
-        # 検証_判定
-        kensho_status = f'=IF(A{row}>$U$2,"予定",IF(P{row}>=1,"完了",IF(O{row}>=N{row},"順調","遅延")))'
+        # 検証者_累計消化率（予定累計0なら空白）
+        kensho_cum_rate = f'=IF(N{row}=0,"",O{row}/N{row})'
+        # 検証_判定（日付>基準日なら予定、累計予定0なら対象外、累計消化率100%なら完了、累計実績>=累計予定なら順調、それ以外は遅延）
+        kensho_status = f'=IF(A{row}>$U$2,"予定",IF(N{row}=0,"－",IF(P{row}>=1,"完了",IF(O{row}>=N{row},"順調","遅延"))))'
 
         # 合計
         total_yotei = f'=D{row}+K{row}'
@@ -1078,7 +1655,7 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
             num_col, den_col = rate_cols[col]
             nc = get_column_letter(num_col)
             dc = get_column_letter(den_col)
-            cell.value = f"=IF({dc}{total_row}=0,0,{nc}{total_row}/{dc}{total_row})"
+            cell.value = f'=IF({dc}{total_row}=0,"",{nc}{total_row}/{dc}{total_row})'
             cell.number_format = "0.0%"
             cell.alignment = DATA_ALIGN_RIGHT
         elif col in (2, 3, 10, 17, 20):
@@ -1099,37 +1676,37 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
         table.tableStyleInfo = style
         ws.add_table(table)
 
-    # 条件付き書式: 消化率列（0-100%のカラースケール）
+    # 条件付き書式: 消化率列（0-100%のカラースケール）- 4色システム対応
     rate_columns = ['F', 'I', 'M', 'P']
     for col_letter in rate_columns:
         range_str = f"{col_letter}{data_start_row}:{col_letter}{last_data_row}"
         ws.conditional_formatting.add(
             range_str,
             ColorScaleRule(
-                start_type='num', start_value=0, start_color='FFC7CE',      # 赤
-                mid_type='num', mid_value=0.5, mid_color='FFEB9C',          # 黄
-                end_type='num', end_value=1, end_color='C6EFCE'             # 緑
+                start_type='num', start_value=0, start_color='FFC7CE',      # 薄い赤
+                mid_type='num', mid_value=0.5, mid_color='FFEB9C',          # 薄い黄
+                end_type='num', end_value=1, end_color='C6EFCE'             # 薄い緑
             )
         )
 
-    # 条件付き書式: 実施_判定列（J列）、検証_判定列（Q列）
+    # 条件付き書式: 実施_判定列（J列）、検証_判定列（Q列）- 4色システム
     for status_col in ['J', 'Q']:
         # 完了 = 緑
         ws.conditional_formatting.add(
             f"{status_col}{data_start_row}:{status_col}{last_data_row}",
             FormulaRule(
                 formula=[f'${status_col}{data_start_row}="完了"'],
-                fill=PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid"),
-                font=Font(color="006100", bold=True)
+                fill=COMPLETE_FILL,
+                font=COMPLETE_FONT
             )
         )
-        # 順調 = 青
+        # 順調 = 黄（進行中だが予定通り）
         ws.conditional_formatting.add(
             f"{status_col}{data_start_row}:{status_col}{last_data_row}",
             FormulaRule(
                 formula=[f'${status_col}{data_start_row}="順調"'],
-                fill=PatternFill(start_color="BDD7EE", end_color="BDD7EE", fill_type="solid"),
-                font=Font(color="1F4E79", bold=True)
+                fill=WARNING_FILL,
+                font=WARNING_FONT
             )
         )
         # 遅延 = 赤
@@ -1137,8 +1714,8 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
             f"{status_col}{data_start_row}:{status_col}{last_data_row}",
             FormulaRule(
                 formula=[f'${status_col}{data_start_row}="遅延"'],
-                fill=PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid"),
-                font=Font(color="9C0006", bold=True)
+                fill=DANGER_FILL,
+                font=DANGER_FONT
             )
         )
         # 予定 = グレー
@@ -1146,27 +1723,36 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
             f"{status_col}{data_start_row}:{status_col}{last_data_row}",
             FormulaRule(
                 formula=[f'${status_col}{data_start_row}="予定"'],
-                fill=PatternFill(start_color="D9D9D9", end_color="D9D9D9", fill_type="solid"),
-                font=Font(color="808080")
+                fill=NEUTRAL_FILL,
+                font=NEUTRAL_FONT
+            )
+        )
+        # 対象外（－）= グレー
+        ws.conditional_formatting.add(
+            f"{status_col}{data_start_row}:{status_col}{last_data_row}",
+            FormulaRule(
+                formula=[f'${status_col}{data_start_row}="－"'],
+                fill=NEUTRAL_FILL,
+                font=NEUTRAL_FONT
             )
         )
 
-    # 条件付き書式: 非営業日は行全体をグレーに（C列="非営業日"）
+    # 条件付き書式: 非営業日は行全体を薄いグレーに（C列="非営業日"）
     ws.conditional_formatting.add(
         f"A{data_start_row}:T{last_data_row}",
         FormulaRule(
             formula=[f'$C{data_start_row}="非営業日"'],
-            fill=COMPLETED_ROW_FILL
+            fill=NEUTRAL_FILL
         )
     )
 
-    # 基準日マーク列（T列）のスタイル
+    # 基準日マーク列（T列）のスタイル - ダークグレー背景で目立たせる
     ws.conditional_formatting.add(
         f"T{data_start_row}:T{last_data_row}",
         FormulaRule(
             formula=[f'$T{data_start_row}="★"'],
-            fill=PatternFill(start_color="FFFF00", end_color="FFFF00", fill_type="solid"),
-            font=Font(color="000000", bold=True, size=14)
+            fill=PatternFill(start_color="505050", end_color="505050", fill_type="solid"),
+            font=Font(color="FFFFFF", bold=True, size=14)
         )
     )
 
