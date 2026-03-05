@@ -1934,7 +1934,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     # チャート配置（pt）
     IMPL_CHART_LEFT_PT = 0       # 実施チャート左端
     VERIFY_CHART_LEFT_PT = 388   # 検証チャート左端（380 + 8pt gap）
-    CHART_TOP_START_PT = 420     # 最初のチャート（全体）のtop位置（20行目付近に配置）
+    CHART_TOP_START_PT = 480     # 最初のチャート（全体）のtop位置（23行目付近に配置）
     CHART_VERTICAL_GAP_PT = 328  # チャート縦間隔（320 + 8pt gap）
 
     # PlotAreaレイアウト比率
