@@ -48,6 +48,7 @@ from datetime import datetime, timedelta
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
+import traceback
 
 # ===================================================================
 #  ===設定=== ここを環境に合わせて変更してください
@@ -911,6 +912,71 @@ def save_cache(cache_file, cache_data):
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)
         except Exception:
             pass
+
+
+# ===================================================================
+#  エラーログ出力
+# ===================================================================
+
+def write_error_log(error_type, error_message, output_path=None):
+    """エラー発生時にログファイルを出力する
+
+    ログファイルは出力先と同じディレクトリ、または実行ディレクトリに作成される。
+    ファイル名: error_log_YYYYMMDD_HHMMSS.txt
+
+    Args:
+        error_type: エラーの種類（例: "PermissionError", "Exception"）
+        error_message: エラーメッセージ
+        output_path: 出力ファイルパス（ログ保存先の決定に使用）
+
+    Returns:
+        str: 作成されたログファイルのパス、または失敗時はNone
+    """
+    try:
+        # ログ保存先の決定
+        if output_path:
+            log_dir = os.path.dirname(output_path)
+            if not log_dir:
+                log_dir = "."
+        else:
+            log_dir = "."
+
+        # ログファイル名
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_filename = f"error_log_{timestamp}.txt"
+        log_path = os.path.join(log_dir, log_filename)
+
+        # ログ内容を作成
+        log_content = [
+            "=" * 60,
+            "テスト進捗集計ツール - エラーログ",
+            "=" * 60,
+            f"発生日時: {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+            f"エラー種類: {error_type}",
+            "",
+            "--- エラー詳細 ---",
+            error_message,
+            "",
+            "--- スタックトレース ---",
+            traceback.format_exc(),
+            "",
+            "--- 環境情報 ---",
+            f"Python: {sys.version}",
+            f"OS: {sys.platform}",
+            f"作業ディレクトリ: {os.getcwd()}",
+            "=" * 60,
+        ]
+
+        # ファイルに書き込み
+        with open(log_path, 'w', encoding='utf-8') as f:
+            f.write("\n".join(log_content))
+
+        print(f"  📝 エラーログを出力しました: {log_path}")
+        return log_path
+
+    except Exception as log_error:
+        print(f"  ⚠ ログファイルの作成に失敗しました: {log_error}")
+        return None
 
 
 # ===================================================================
@@ -2919,29 +2985,35 @@ def main():
     except PermissionError as e:
         error_msg = str(e)
         print(f"\n  ❌ エラー: {error_msg}")
+        # エラーログを出力
+        log_path = write_error_log("PermissionError", error_msg, output_path)
         if not cli_mode:
             root_err = tk.Tk()
             root_err.withdraw()
             root_err.attributes("-topmost", True)
+            log_info = f"\n\nエラーログ:\n{log_path}" if log_path else ""
             messagebox.showerror(
                 "ファイル保存エラー",
                 f"ファイルを保存できませんでした。\n\n"
                 f"出力先ファイルが開かれている可能性があります。\n"
                 f"Excelでファイルを閉じてから再実行してください。\n\n"
-                f"出力先:\n{output_path}"
+                f"出力先:\n{output_path}{log_info}"
             )
             root_err.destroy()
         sys.exit(1)
     except Exception as e:
         error_msg = str(e)
         print(f"\n  ❌ 予期しないエラー: {error_msg}")
+        # エラーログを出力
+        log_path = write_error_log("Exception", error_msg, output_path)
         if not cli_mode:
             root_err = tk.Tk()
             root_err.withdraw()
             root_err.attributes("-topmost", True)
+            log_info = f"\n\nエラーログ:\n{log_path}" if log_path else ""
             messagebox.showerror(
                 "エラー",
-                f"予期しないエラーが発生しました。\n\n{error_msg}"
+                f"予期しないエラーが発生しました。\n\n{error_msg}{log_info}"
             )
             root_err.destroy()
         sys.exit(1)
