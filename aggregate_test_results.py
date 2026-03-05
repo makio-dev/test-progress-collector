@@ -2931,6 +2931,8 @@ def main():
                         help="サブフォルダを含める（デフォルト: True）")
     parser.add_argument("--no-subfolders", action="store_true",
                         help="サブフォルダを含めない")
+    parser.add_argument("--week-from", help="週集計の開始日（YYYY/MM/DD または YYYYMMDD）")
+    parser.add_argument("--week-to", help="週集計の終了日（YYYY/MM/DD または YYYYMMDD）")
     args = parser.parse_args()
 
     # CLIモード or GUIウィザードモード
@@ -2948,7 +2950,20 @@ def main():
             # デフォルト出力パス
             output_path = os.path.join("output", f"test_progress_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
         include_subfolders = not args.no_subfolders
-        # CLIモードでは週範囲は指定しない（将来的に引数追加可能）
+
+        # 週範囲の処理
+        if args.week_from:
+            from_date, from_normalized = parse_date_input(args.week_from)
+            if from_date is None:
+                print(f"エラー: --week-from の日付形式が不正です: {args.week_from}")
+                sys.exit(1)
+            week_from = from_normalized
+        if args.week_to:
+            to_date, to_normalized = parse_date_input(args.week_to)
+            if to_date is None:
+                print(f"エラー: --week-to の日付形式が不正です: {args.week_to}")
+                sys.exit(1)
+            week_to = to_normalized
     else:
         # --- ウィザードUI実行 ---
         config = run_wizard()
