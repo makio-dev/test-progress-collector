@@ -2418,17 +2418,23 @@ def _write_detail_sheet(ws, records):
         # 全体進捗
         overall_status = '=IF(AND(H{row}="完了",K{row}="完了"),"完了",IF(OR(H{row}="遅延",K{row}="遅延"),"遅延","進行中"))'.format(row=row)
 
+        # 日付文字列を日付オブジェクトに変換（Excelでの比較用）
+        jisshi_yotei_obj = _to_date_obj(rec["実施者_予定"])
+        jisshi_jisseki_obj = _to_date_obj(rec["実施者_実績"])
+        kensho_yotei_obj = _to_date_obj(rec["検証者_予定"])
+        kensho_jisseki_obj = _to_date_obj(rec["検証者_実績"])
+
         values = [
             i + 1,
             rec["ファイル名"],
             rec["シート名"],
             rec["チーム名"],
             rec["テストID"],
-            rec["実施者_予定"] if rec["実施者_予定"] else "",
-            rec["実施者_実績"] if rec["実施者_実績"] else "",
+            jisshi_yotei_obj if jisshi_yotei_obj else "",
+            jisshi_jisseki_obj if jisshi_jisseki_obj else "",
             jisshi_status,
-            rec["検証者_予定"] if rec["検証者_予定"] else "",
-            rec["検証者_実績"] if rec["検証者_実績"] else "",
+            kensho_yotei_obj if kensho_yotei_obj else "",
+            kensho_jisseki_obj if kensho_jisseki_obj else "",
             kensho_status,
             overall_status,
         ]
@@ -2444,6 +2450,10 @@ def _write_detail_sheet(ws, records):
                 cell.alignment = DATA_ALIGN_CENTER
             else:
                 cell.alignment = DATA_ALIGN_LEFT
+
+            # 日付列の書式設定（F, G, I, J列）
+            if col in (6, 7, 9, 10) and val:
+                cell.number_format = "YYYY/MM/DD"
 
     # テーブル作成
     if records:
