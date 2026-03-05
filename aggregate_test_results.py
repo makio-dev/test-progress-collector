@@ -1097,7 +1097,16 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
             wb.move_sheet(sheet_name, offset=i - wb.sheetnames.index(sheet_name))
 
     # --- 保存 ---
-    wb.save(output_path)
+    try:
+        wb.save(output_path)
+    except PermissionError as e:
+        raise PermissionError(
+            f"ファイルを保存できません。\n"
+            f"出力先ファイルが開かれている可能性があります。\n"
+            f"Excelでファイルを閉じてから再実行してください。\n\n"
+            f"出力先: {output_path}\n"
+            f"詳細: {e}"
+        )
     print(f"\n  ✅ 出力完了: {output_path}")
     print(f"     ダッシュボード: 本日のサマリー")
     print(f"     明細シート: {len(records)}件")
@@ -2905,7 +2914,37 @@ def main():
             root_err.destroy()
         sys.exit(1)
 
-    write_excel(records, output_path, week_from=week_from, week_to=week_to)
+    try:
+        write_excel(records, output_path, week_from=week_from, week_to=week_to)
+    except PermissionError as e:
+        error_msg = str(e)
+        print(f"\n  ❌ エラー: {error_msg}")
+        if not cli_mode:
+            root_err = tk.Tk()
+            root_err.withdraw()
+            root_err.attributes("-topmost", True)
+            messagebox.showerror(
+                "ファイル保存エラー",
+                f"ファイルを保存できませんでした。\n\n"
+                f"出力先ファイルが開かれている可能性があります。\n"
+                f"Excelでファイルを閉じてから再実行してください。\n\n"
+                f"出力先:\n{output_path}"
+            )
+            root_err.destroy()
+        sys.exit(1)
+    except Exception as e:
+        error_msg = str(e)
+        print(f"\n  ❌ 予期しないエラー: {error_msg}")
+        if not cli_mode:
+            root_err = tk.Tk()
+            root_err.withdraw()
+            root_err.attributes("-topmost", True)
+            messagebox.showerror(
+                "エラー",
+                f"予期しないエラーが発生しました。\n\n{error_msg}"
+            )
+            root_err.destroy()
+        sys.exit(1)
 
     print("\n" + "=" * 60)
 
