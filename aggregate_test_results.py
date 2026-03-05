@@ -1262,7 +1262,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws['G2'].border = THIN_BORDER
     if week_from:
         ws['G2'].number_format = "YYYY/MM/DD"
-    ws.column_dimensions['G'].width = 12
+    ws.column_dimensions['G'].width = 14
 
     ws['H2'] = "To:"
     ws['H2'].font = Font(name="游ゴシック", size=10, color="505050")
@@ -1934,7 +1934,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     # チャート配置（pt）
     IMPL_CHART_LEFT_PT = 0       # 実施チャート左端
     VERIFY_CHART_LEFT_PT = 388   # 検証チャート左端（380 + 8pt gap）
-    CHART_TOP_START_PT = 520     # 最初のチャート（全体）のtop位置（新レイアウトに合わせて調整）
+    CHART_TOP_START_PT = 420     # 最初のチャート（全体）のtop位置（20行目付近に配置）
     CHART_VERTICAL_GAP_PT = 328  # チャート縦間隔（320 + 8pt gap）
 
     # PlotAreaレイアウト比率
@@ -2300,7 +2300,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records):
         ws.cell(row=row, column=1, value="遅延しているテストケースはありません").font = Font(name="游ゴシック", size=11, color="2E7D32", italic=True)
 
     # 列幅設定
-    delayed_widths = [8, 14, 20, 18, 14, 14, 14, 14]
+    delayed_widths = [10, 14, 20, 18, 14, 14, 14, 14]
     for i, w in enumerate(delayed_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
