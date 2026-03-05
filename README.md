@@ -35,17 +35,42 @@ cd test-progress-collector
 
 ### 2. Python仮想環境の作成
 
+#### macOS / Linux
+
 ```bash
+# 仮想環境の作成
+python3 -m venv .venv
+
+# 仮想環境の有効化
+source .venv/bin/activate
+
+# 依存ライブラリのインストール
+pip install -r requirements.txt
+```
+
+#### Windows (PowerShell)
+
+```powershell
 # 仮想環境の作成
 python -m venv .venv
 
 # 仮想環境の有効化
-# macOS/Linux
-source .venv/bin/activate
-# Windows
-.venv\Scripts\activate
+.venv\Scripts\Activate.ps1
 
 # 依存ライブラリのインストール
+pip install -r requirements.txt
+```
+
+#### Windows (コマンドプロンプト)
+
+```cmd
+REM 仮想環境の作成
+python -m venv .venv
+
+REM 仮想環境の有効化
+.venv\Scripts\activate.bat
+
+REM 依存ライブラリのインストール
 pip install -r requirements.txt
 ```
 
@@ -59,24 +84,42 @@ python aggregate_test_results.py
 
 ウィザードが起動し、以下のステップで設定できます：
 1. **入力フォルダ選択**: テストケースExcelファイルが格納されたフォルダを選択
-2. **週範囲設定**: 週次集計の開始日・終了日を設定（任意）
+2. **週範囲設定**: 週次集計の開始日・終了日を設定（デフォルト: 今日日付）
 3. **出力先設定**: 出力Excelファイルのパスを指定
 4. **確認・実行**: 設定内容を確認して実行
 
 ### CLIモード
 
+#### macOS / Linux
+
 ```bash
 # 基本的な使い方
-python aggregate_test_results.py <入力フォルダ> -o <出力ファイル>
-
-# 例
 python aggregate_test_results.py ./input -o ./output/report.xlsx
 
 # サブフォルダを除外
 python aggregate_test_results.py ./input -o ./output/report.xlsx --no-recursive
 
-# 週範囲を指定
+# 週範囲を指定（スラッシュ形式）
 python aggregate_test_results.py ./input -o ./output/report.xlsx --week-from 2026/03/01 --week-to 2026/03/07
+
+# 週範囲を指定（スラッシュなし形式）
+python aggregate_test_results.py ./input -o ./output/report.xlsx --week-from 20260301 --week-to 20260307
+```
+
+#### Windows (PowerShell / コマンドプロンプト)
+
+```powershell
+# 基本的な使い方
+python aggregate_test_results.py .\input -o .\output\report.xlsx
+
+# サブフォルダを除外
+python aggregate_test_results.py .\input -o .\output\report.xlsx --no-recursive
+
+# 週範囲を指定（スラッシュ形式）
+python aggregate_test_results.py .\input -o .\output\report.xlsx --week-from 2026/03/01 --week-to 2026/03/07
+
+# 週範囲を指定（スラッシュなし形式）
+python aggregate_test_results.py .\input -o .\output\report.xlsx --week-from 20260301 --week-to 20260307
 ```
 
 ### CLIオプション
@@ -87,14 +130,14 @@ python aggregate_test_results.py ./input -o ./output/report.xlsx --week-from 202
 | `-o, --output` | 出力ファイルパス（デフォルト: `./output/テスト進捗集計_{日時}.xlsx`） |
 | `--no-recursive` | サブフォルダを含めない |
 | `--sheet-prefix` | 対象シートの接頭辞（デフォルト: `ITB`） |
-| `--week-from` | 週集計の開始日（YYYY/MM/DD形式） |
-| `--week-to` | 週集計の終了日（YYYY/MM/DD形式） |
+| `--week-from` | 週集計の開始日（YYYY/MM/DD または YYYYMMDD形式） |
+| `--week-to` | 週集計の終了日（YYYY/MM/DD または YYYYMMDD形式） |
 
 ## 入力ファイル形式
 
 ### 対象ファイル
 
-- Excelファイル（`.xlsx`）
+- Excelファイル（`.xlsx`, `.xlsm`）
 - シート名が`ITB`で始まるシートを対象
 
 ### 必須列
@@ -131,11 +174,11 @@ pip install pyinstaller
 
 ### 2. EXEの作成
 
-```bash
+```powershell
 # 基本（コンソール付き）
 pyinstaller --onefile aggregate_test_results.py
 
-# GUIアプリとして（コンソール非表示）
+# GUIアプリとして（コンソール非表示）- 推奨
 pyinstaller --onefile --windowed aggregate_test_results.py
 
 # アイコン付き
@@ -144,7 +187,7 @@ pyinstaller --onefile --windowed --icon=app.ico aggregate_test_results.py
 
 ### 3. 出力先
 
-`dist/aggregate_test_results.exe` にEXEファイルが生成されます。
+`dist\aggregate_test_results.exe` にEXEファイルが生成されます。
 
 ### 注意事項
 

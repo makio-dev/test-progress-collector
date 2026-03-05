@@ -380,6 +380,37 @@ SUMMARY_COL_WIDTHS = {
 #  ウィザードUI
 # ===================================================================
 
+def parse_date_input(date_str):
+    """日付文字列をパースしてYYYY/MM/DD形式に正規化する
+
+    対応形式:
+    - YYYY/MM/DD (例: 2025/01/06)
+    - YYYYMMDD (例: 20250106)
+    - YYYY-MM-DD (例: 2025-01-06)
+
+    Returns:
+        tuple: (datetime, normalized_str) または (None, None) エラー時
+    """
+    date_str = date_str.strip()
+    if not date_str:
+        return None, None
+
+    formats = [
+        ("%Y/%m/%d", date_str),
+        ("%Y%m%d", date_str),
+        ("%Y-%m-%d", date_str),
+    ]
+
+    for fmt, val in formats:
+        try:
+            dt = datetime.strptime(val, fmt)
+            return dt, dt.strftime("%Y/%m/%d")
+        except ValueError:
+            continue
+
+    return None, None
+
+
 class WizardApp(tk.Tk):
     """ウィザード形式のメインアプリケーション"""
 
@@ -400,9 +431,10 @@ class WizardApp(tk.Tk):
         self.include_subfolders = tk.BooleanVar(value=True)
         self.update_mode = tk.StringVar(value="new")  # "new" or "update"
 
-        # 週集計範囲（From/To）
-        self.week_from = tk.StringVar()
-        self.week_to = tk.StringVar()
+        # 週集計範囲（From/To）- デフォルトで今日日付を設定
+        today_str = datetime.now().strftime("%Y/%m/%d")
+        self.week_from = tk.StringVar(value=today_str)
+        self.week_to = tk.StringVar(value=today_str)
 
         # 現在のステップ
         self.current_step = 1
@@ -551,7 +583,7 @@ class WizardApp(tk.Tk):
         ttk.Label(from_frame, text="From（開始日）:", width=15, anchor=tk.W).pack(side=tk.LEFT)
         self.week_from_entry = ttk.Entry(from_frame, textvariable=self.week_from, width=15)
         self.week_from_entry.pack(side=tk.LEFT)
-        ttk.Label(from_frame, text="  例: 2025/01/06", foreground="gray").pack(side=tk.LEFT)
+        ttk.Label(from_frame, text="  例: 2025/01/06 or 20250106", foreground="gray").pack(side=tk.LEFT)
 
         # To
         to_frame = ttk.Frame(week_frame)
@@ -559,12 +591,12 @@ class WizardApp(tk.Tk):
         ttk.Label(to_frame, text="To（終了日）:", width=15, anchor=tk.W).pack(side=tk.LEFT)
         self.week_to_entry = ttk.Entry(to_frame, textvariable=self.week_to, width=15)
         self.week_to_entry.pack(side=tk.LEFT)
-        ttk.Label(to_frame, text="  例: 2025/01/10", foreground="gray").pack(side=tk.LEFT)
+        ttk.Label(to_frame, text="  例: 2025/01/10 or 20250110", foreground="gray").pack(side=tk.LEFT)
 
         # 注意書き
         note = ttk.Label(
             self.content_frame,
-            text="※ 日付は YYYY/MM/DD 形式で入力してください。\n※ 週次集計は指定した期間内の予定・実績を集計します。",
+            text="※ 日付形式: YYYY/MM/DD, YYYYMMDD, YYYY-MM-DD に対応\n※ 週次集計は指定した期間内の予定・実績を集計します。",
             foreground="gray",
             wraplength=480
         )
@@ -705,7 +737,7 @@ class WizardApp(tk.Tk):
             path = filedialog.asksaveasfilename(
                 title="保存先を選択",
                 defaultextension=".xlsx",
-                filetypes=[("Excel ファイル", "*.xlsx")],
+                filetypes=[("Excel ファイル", "*.xlsx *.xlsm")],
                 initialfile="テスト進捗集計.xlsx",
                 confirmoverwrite=False  # OS標準の上書き確認を無効化
             )
@@ -722,7 +754,7 @@ class WizardApp(tk.Tk):
             # 更新モード: 既存ファイルを選択
             path = filedialog.askopenfilename(
                 title="更新するファイルを選択",
-                filetypes=[("Excel ファイル", "*.xlsx")]
+                filetypes=[("Excel ファイル", "*.xlsx *.xlsm")]
             )
             if path:
                 # 更新モードでも確認
@@ -759,16 +791,21 @@ class WizardApp(tk.Tk):
                 if not week_from or not week_to:
                     messagebox.showwarning("入力エラー", "週集計範囲を指定する場合は、開始日と終了日の両方を入力してください。")
                     return
-                # 日付形式のバリデーション
-                try:
-                    from_date = datetime.strptime(week_from, "%Y/%m/%d")
-                    to_date = datetime.strptime(week_to, "%Y/%m/%d")
-                    if from_date > to_date:
-                        messagebox.showwarning("入力エラー", "開始日は終了日より前の日付を指定してください。")
-                        return
-                except ValueError:
-                    messagebox.showwarning("入力エラー", "日付は YYYY/MM/DD 形式で入力してください。\n例: 2025/01/06")
+                # 日付形式のバリデーション（複数形式対応）
+                from_date, from_normalized = parse_date_input(week_from)
+                to_date, to_normalized = parse_date_input(week_to)
+                if from_date is None:
+                    messagebox.showwarning("入力エラー", "開始日の形式が正しくありません。\n対応形式: YYYY/MM/DD, YYYYMMDD, YYYY-MM-DD")
                     return
+                if to_date is None:
+                    messagebox.showwarning("入力エラー", "終了日の形式が正しくありません。\n対応形式: YYYY/MM/DD, YYYYMMDD, YYYY-MM-DD")
+                    return
+                if from_date > to_date:
+                    messagebox.showwarning("入力エラー", "開始日は終了日より前の日付を指定してください。")
+                    return
+                # 正規化された日付を設定
+                self.week_from.set(from_normalized)
+                self.week_to.set(to_normalized)
             self.show_step(3)
 
         elif self.current_step == 3:
@@ -897,11 +934,11 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
     if include_subfolders:
         for root, dirs, files in os.walk(folder_path):
             for filename in sorted(files):
-                if filename.endswith(".xlsx") and not filename.startswith("~$"):
+                if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$"):
                     excel_files.append(os.path.join(root, filename))
     else:
         for filename in sorted(os.listdir(folder_path)):
-            if filename.endswith(".xlsx") and not filename.startswith("~$"):
+            if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$"):
                 excel_files.append(os.path.join(folder_path, filename))
 
     for filepath in excel_files:
