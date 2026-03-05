@@ -2918,7 +2918,33 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
 #  メイン処理
 # ===================================================================
 
+def attach_console():
+    """Windows EXE実行時にコンソールをアタッチする（CLIモード用）
+
+    --windowed オプションでビルドしたEXEでも、
+    コマンドラインから実行した場合はコンソール出力を有効にする。
+    """
+    if sys.platform == 'win32':
+        try:
+            import ctypes
+            kernel32 = ctypes.windll.kernel32
+            # 親プロセスのコンソールにアタッチ
+            if kernel32.AttachConsole(-1):  # ATTACH_PARENT_PROCESS = -1
+                # 標準出力/エラー出力をコンソールにリダイレクト
+                sys.stdout = open('CONOUT$', 'w', encoding='utf-8')
+                sys.stderr = open('CONOUT$', 'w', encoding='utf-8')
+        except Exception:
+            pass  # 失敗しても続行
+
+
 def main():
+    # CLI引数があるかチェック（GUIモードかCLIモードか判定）
+    has_cli_args = len(sys.argv) > 1
+
+    # CLIモードの場合、コンソールをアタッチ（Windows EXE用）
+    if has_cli_args:
+        attach_console()
+
     print("=" * 60)
     print("  テスト予定・実績 集計スクリプト v4")
     print("=" * 60)
