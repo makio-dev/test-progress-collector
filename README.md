@@ -175,10 +175,7 @@ pip install pyinstaller
 ### 2. EXEの作成
 
 ```powershell
-# 基本（コンソール付き）
-pyinstaller --onefile aggregate_test_results.py
-
-# GUIアプリとして（コンソール非表示）- 推奨
+# 推奨（GUI/CLI両対応）
 pyinstaller --onefile --windowed aggregate_test_results.py
 
 # アイコン付き
@@ -189,9 +186,31 @@ pyinstaller --onefile --windowed --icon=app.ico aggregate_test_results.py
 
 `dist\aggregate_test_results.exe` にEXEファイルが生成されます。
 
+### 4. EXEの使い方
+
+**1つのEXEでGUIモードとCLIモードの両方に対応しています。**
+
+#### GUIモード（ダブルクリック）
+
+EXEファイルをダブルクリックすると、ウィザード形式のGUIが起動します。
+コンソールウィンドウは表示されません。
+
+#### CLIモード（コマンドライン）
+
+コマンドプロンプトやPowerShellから引数を付けて実行すると、CLIモードで動作します。
+コンソールに進捗状況が出力されます。
+
+```powershell
+# 基本的な使い方
+.\aggregate_test_results.exe .\input -o .\output\report.xlsx
+
+# 週範囲を指定
+.\aggregate_test_results.exe .\input -o .\output\report.xlsx --week-from 2026/03/01 --week-to 2026/03/07
+```
+
 ### 注意事項
 
-- `--windowed`オプションでコンソールウィンドウを非表示にできます
+- `--windowed`オプションを付けても、CLIモードではコンソール出力が有効になります
 - tkinterは標準ライブラリのため追加設定不要
 - 初回起動時はWindows Defenderの警告が出る場合があります
 
