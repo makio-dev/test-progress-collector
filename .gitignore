@@ -20,8 +20,3 @@ Thumbs.db
 
 # Project specific
 .test_collector_cache.json
-
-# Excelファイルはサンプル以外除外
-output/*.xlsx
-!input/
-!output/
