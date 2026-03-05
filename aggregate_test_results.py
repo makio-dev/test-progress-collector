@@ -1275,7 +1275,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws['I2'].border = THIN_BORDER
     if week_to:
         ws['I2'].number_format = "YYYY/MM/DD"
-    ws.column_dimensions['I'].width = 12
+    ws.column_dimensions['I'].width = 14
 
     # 週範囲セルの参照用アドレス（数式で使用）
     WEEK_FROM_CELL = "$G$2"
