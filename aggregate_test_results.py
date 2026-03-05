@@ -2300,7 +2300,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records):
         ws.cell(row=row, column=1, value="遅延しているテストケースはありません").font = Font(name="游ゴシック", size=11, color="2E7D32", italic=True)
 
     # 列幅設定
-    delayed_widths = [10, 14, 20, 18, 14, 14, 14, 14]
+    delayed_widths = [12, 14, 20, 18, 14, 14, 14, 14]
     for i, w in enumerate(delayed_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
