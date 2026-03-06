@@ -438,6 +438,15 @@ class WizardApp(tk.Tk):
         self.week_from = tk.StringVar(value=week_ago.strftime("%Y/%m/%d"))
         self.week_to = tk.StringVar(value=today.strftime("%Y/%m/%d"))
 
+        # 欠陥一覧ファイル（チーム別）
+        self.defect_files = {
+            "オンライン": tk.StringVar(),
+            "バッチ": tk.StringVar(),
+            "基盤": tk.StringVar(),
+            "運用": tk.StringVar(),
+        }
+        self.defect_file_labels = {}  # ファイル名表示用ラベル
+
         # 現在のステップ
         self.current_step = 1
 
@@ -513,14 +522,16 @@ class WizardApp(tk.Tk):
             self.show_step3()
         elif step == 4:
             self.show_step4()
+        elif step == 5:
+            self.show_step5()
 
         # ボタンの状態を更新
         self.back_btn.config(state=tk.NORMAL if step > 1 else tk.DISABLED)
-        self.next_btn.config(text="実行" if step == 4 else "次へ >")
+        self.next_btn.config(text="実行" if step == 5 else "次へ >")
 
     def show_step1(self):
         """ステップ1: 対象フォルダ選択"""
-        self.step_label.config(text="ステップ 1/4: 対象フォルダ選択")
+        self.step_label.config(text="ステップ 1/5: 対象フォルダ選択")
 
         # 説明
         desc = ttk.Label(
@@ -564,8 +575,91 @@ class WizardApp(tk.Tk):
         note.pack(anchor=tk.W, pady=(5, 0))
 
     def show_step2(self):
-        """ステップ2: 週集計範囲"""
-        self.step_label.config(text="ステップ 2/4: 週集計範囲")
+        """ステップ2: 欠陥一覧ファイル"""
+        self.step_label.config(text="ステップ 2/5: 欠陥一覧ファイル（任意）")
+
+        # 説明
+        desc = ttk.Label(
+            self.content_frame,
+            text="欠陥一覧ファイルを指定すると、ダッシュボードに欠陥数を表示します。\n指定しない場合は欠陥情報なしで集計します。",
+            wraplength=480
+        )
+        desc.pack(anchor=tk.W, pady=(0, 10))
+
+        # 欠陥ファイル入力フレーム
+        defect_frame = ttk.LabelFrame(self.content_frame, text="チーム別 欠陥一覧ファイル", padding=10)
+        defect_frame.pack(fill=tk.X, pady=5)
+
+        # 各チームのファイル選択
+        for team_name in self.defect_files.keys():
+            row_frame = ttk.Frame(defect_frame)
+            row_frame.pack(fill=tk.X, pady=3)
+
+            ttk.Label(row_frame, text=f"{team_name}:", width=10, anchor=tk.W).pack(side=tk.LEFT)
+
+            ttk.Button(
+                row_frame,
+                text="📁 選択",
+                command=lambda t=team_name: self.select_defect_file(t),
+                width=8
+            ).pack(side=tk.LEFT, padx=(0, 5))
+
+            # ファイル名表示ラベル
+            file_path = self.defect_files[team_name].get()
+            if file_path:
+                display_text = os.path.basename(file_path)
+                fg_color = "black"
+            else:
+                display_text = "(未設定)"
+                fg_color = "gray"
+
+            label = ttk.Label(row_frame, text=display_text, foreground=fg_color, width=35, anchor=tk.W)
+            label.pack(side=tk.LEFT)
+            self.defect_file_labels[team_name] = label
+
+            # クリアボタン
+            if file_path:
+                ttk.Button(
+                    row_frame,
+                    text="✕",
+                    command=lambda t=team_name: self.clear_defect_file(t),
+                    width=3
+                ).pack(side=tk.LEFT)
+
+        # 注意書き
+        note = ttk.Label(
+            self.content_frame,
+            text="※ 欠陥一覧ファイルには「欠陥発見・対応推移集計表」シートが必要です。\n※ 一部のチームのみ指定することも可能です。",
+            foreground="gray",
+            wraplength=480
+        )
+        note.pack(anchor=tk.W, pady=(10, 0))
+
+    def select_defect_file(self, team_name):
+        """欠陥ファイル選択ダイアログ"""
+        filepath = filedialog.askopenfilename(
+            title=f"欠陥一覧ファイルを選択 - {team_name}",
+            filetypes=[("Excelファイル", "*.xlsx *.xlsm"), ("すべてのファイル", "*.*")]
+        )
+        if filepath:
+            self.defect_files[team_name].set(filepath)
+            # ラベルを更新
+            if team_name in self.defect_file_labels:
+                self.defect_file_labels[team_name].config(
+                    text=os.path.basename(filepath),
+                    foreground="black"
+                )
+            # UIを再描画してクリアボタンを表示
+            self.show_step(2)
+
+    def clear_defect_file(self, team_name):
+        """欠陥ファイルをクリア"""
+        self.defect_files[team_name].set("")
+        self.show_step(2)
+
+    def show_step3(self):
+        """ステップ3: 週集計範囲"""
+        self.step_label.config(text="ステップ 3/5: 週集計範囲")
 
         # 説明
         desc = ttk.Label(
@@ -604,9 +698,9 @@ class WizardApp(tk.Tk):
         )
         note.pack(anchor=tk.W, pady=(15, 0))
 
-    def show_step3(self):
-        """ステップ3: 出力設定"""
-        self.step_label.config(text="ステップ 3/4: 出力設定")
+    def show_step4(self):
+        """ステップ4: 出力設定"""
+        self.step_label.config(text="ステップ 4/5: 出力設定")
 
         # 説明
         desc = ttk.Label(
@@ -663,9 +757,9 @@ class WizardApp(tk.Tk):
         )
         self.output_display.pack(side=tk.LEFT, padx=(10, 0))
 
-    def show_step4(self):
-        """ステップ4: 確認"""
-        self.step_label.config(text="ステップ 4/4: 確認")
+    def show_step5(self):
+        """ステップ5: 確認"""
+        self.step_label.config(text="ステップ 5/5: 確認")
 
         # 説明
         desc = ttk.Label(
@@ -673,40 +767,40 @@ class WizardApp(tk.Tk):
             text="以下の設定で集計を実行します。内容を確認してください。",
             wraplength=480
         )
-        desc.pack(anchor=tk.W, pady=(0, 15))
+        desc.pack(anchor=tk.W, pady=(0, 10))
 
         # 設定内容表示
-        confirm_frame = ttk.LabelFrame(self.content_frame, text="設定内容", padding=15)
-        confirm_frame.pack(fill=tk.X, pady=10)
+        confirm_frame = ttk.LabelFrame(self.content_frame, text="設定内容", padding=10)
+        confirm_frame.pack(fill=tk.X, pady=5)
 
         # フォルダ
         row1 = ttk.Frame(confirm_frame)
-        row1.pack(fill=tk.X, pady=3)
+        row1.pack(fill=tk.X, pady=2)
         ttk.Label(row1, text="対象フォルダ:", width=15, anchor=tk.W).pack(side=tk.LEFT)
         ttk.Label(row1, text=self.folder_path.get(), wraplength=350).pack(side=tk.LEFT)
 
         # サブフォルダ
         row2 = ttk.Frame(confirm_frame)
-        row2.pack(fill=tk.X, pady=3)
+        row2.pack(fill=tk.X, pady=2)
         ttk.Label(row2, text="サブフォルダ:", width=15, anchor=tk.W).pack(side=tk.LEFT)
         ttk.Label(row2, text="含める" if self.include_subfolders.get() else "含めない").pack(side=tk.LEFT)
 
         # 出力先
         row3 = ttk.Frame(confirm_frame)
-        row3.pack(fill=tk.X, pady=3)
+        row3.pack(fill=tk.X, pady=2)
         ttk.Label(row3, text="出力先:", width=15, anchor=tk.W).pack(side=tk.LEFT)
         ttk.Label(row3, text=self.output_path.get(), wraplength=350).pack(side=tk.LEFT)
 
         # モード
         row4 = ttk.Frame(confirm_frame)
-        row4.pack(fill=tk.X, pady=3)
+        row4.pack(fill=tk.X, pady=2)
         ttk.Label(row4, text="モード:", width=15, anchor=tk.W).pack(side=tk.LEFT)
         mode_text = "新規作成" if self.update_mode.get() == "new" else "既存ファイル更新"
         ttk.Label(row4, text=mode_text).pack(side=tk.LEFT)
 
         # 週集計範囲
         row5 = ttk.Frame(confirm_frame)
-        row5.pack(fill=tk.X, pady=3)
+        row5.pack(fill=tk.X, pady=2)
         ttk.Label(row5, text="週集計範囲:", width=15, anchor=tk.W).pack(side=tk.LEFT)
         week_from = self.week_from.get()
         week_to = self.week_to.get()
@@ -716,6 +810,18 @@ class WizardApp(tk.Tk):
             week_text = "（指定なし）"
         ttk.Label(row5, text=week_text).pack(side=tk.LEFT)
 
+        # 欠陥一覧ファイル
+        row6 = ttk.Frame(confirm_frame)
+        row6.pack(fill=tk.X, pady=2)
+        ttk.Label(row6, text="欠陥一覧:", width=15, anchor=tk.W).pack(side=tk.LEFT)
+        defect_count = sum(1 for v in self.defect_files.values() if v.get())
+        if defect_count > 0:
+            defect_teams = [t for t, v in self.defect_files.items() if v.get()]
+            defect_text = f"{defect_count}チーム（{', '.join(defect_teams)}）"
+        else:
+            defect_text = "（未設定）"
+        ttk.Label(row6, text=defect_text).pack(side=tk.LEFT)
+
         # 注意書き
         note = ttk.Label(
             self.content_frame,
@@ -723,7 +829,7 @@ class WizardApp(tk.Tk):
             foreground="gray",
             wraplength=480
         )
-        note.pack(anchor=tk.W, pady=(15, 0))
+        note.pack(anchor=tk.W, pady=(10, 0))
 
     def select_folder(self):
         """フォルダ選択ダイアログ"""
@@ -785,6 +891,10 @@ class WizardApp(tk.Tk):
             self.show_step(2)
 
         elif self.current_step == 2:
+            # 欠陥ファイルのバリデーション（任意なのでスキップ可）
+            self.show_step(3)
+
+        elif self.current_step == 3:
             # 週集計範囲のバリデーション（入力がある場合のみ）
             week_from = self.week_from.get().strip()
             week_to = self.week_to.get().strip()
@@ -808,19 +918,26 @@ class WizardApp(tk.Tk):
                 # 正規化された日付を設定
                 self.week_from.set(from_normalized)
                 self.week_to.set(to_normalized)
-            self.show_step(3)
-
-        elif self.current_step == 3:
-            if not self.output_path.get():
-                messagebox.showwarning("入力エラー", "出力先を選択してください。")
-                return
             self.show_step(4)
 
         elif self.current_step == 4:
+            if not self.output_path.get():
+                messagebox.showwarning("入力エラー", "出力先を選択してください。")
+                return
+            self.show_step(5)
+
+        elif self.current_step == 5:
             self.execute()
 
     def execute(self):
         """集計を実行"""
+        # 欠陥ファイルの辞書を作成（設定されているもののみ）
+        defect_files_dict = {}
+        for team_name, var in self.defect_files.items():
+            path = var.get().strip()
+            if path:
+                defect_files_dict[team_name] = path
+
         self.result = {
             "folder_path": self.folder_path.get(),
             "output_path": self.output_path.get(),
@@ -828,6 +945,7 @@ class WizardApp(tk.Tk):
             "update_mode": self.update_mode.get(),
             "week_from": self.week_from.get().strip() or None,
             "week_to": self.week_to.get().strip() or None,
+            "defect_files": defect_files_dict if defect_files_dict else None,
         }
         self.destroy()
 
@@ -1095,10 +1213,105 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
 
 
 # ===================================================================
+#  欠陥データ収集
+# ===================================================================
+
+# 欠陥一覧シートの設定
+DEFECT_SHEET_NAME = "欠陥発見・対応推移集計表"
+DEFECT_HEADER_ROW = 10
+DEFECT_DATA_START_ROW = 11
+DEFECT_COL_NO = 1
+DEFECT_COL_DATE = 2
+DEFECT_COL_DETECTED = 3
+DEFECT_COL_RESOLVED = 4
+DEFECT_COL_CUM_DETECTED = 5
+DEFECT_COL_CUM_RESOLVED = 6
+DEFECT_COL_CUM_UNRESOLVED = 7
+
+
+def collect_defect_data(defect_files):
+    """欠陥一覧ファイルからデータを収集
+
+    Args:
+        defect_files: チーム名をキー、ファイルパスを値とする辞書
+            例: {"オンライン": "/path/to/file.xlsx", "バッチ": "/path/to/file.xlsx"}
+
+    Returns:
+        defect_records: 欠陥レコードのリスト
+            各レコード: {
+                "チーム名": str,
+                "日付": date,
+                "検出欠陥数": int,
+                "対応欠陥数": int,
+                "累積検出欠陥数": int,
+                "累積対応欠陥数": int,
+                "累積未対応欠陥数": int,
+            }
+    """
+    defect_records = []
+
+    if not defect_files:
+        return defect_records
+
+    for team_name, filepath in defect_files.items():
+        if not filepath or not os.path.exists(filepath):
+            print(f"  ⏭ 欠陥一覧({team_name}): ファイルなし")
+            continue
+
+        try:
+            wb = openpyxl.load_workbook(filepath, data_only=True)
+
+            # 対象シートを探す
+            if DEFECT_SHEET_NAME not in wb.sheetnames:
+                print(f"  ⚠ 欠陥一覧({team_name}): シート '{DEFECT_SHEET_NAME}' が見つかりません")
+                wb.close()
+                continue
+
+            ws = wb[DEFECT_SHEET_NAME]
+            record_count = 0
+
+            for row in range(DEFECT_DATA_START_ROW, ws.max_row + 1):
+                date_val = ws.cell(row=row, column=DEFECT_COL_DATE).value
+                if not date_val:
+                    continue
+
+                # 日付を変換
+                date_converted = _to_date(date_val)
+                if not date_converted:
+                    continue
+
+                detected = ws.cell(row=row, column=DEFECT_COL_DETECTED).value or 0
+                resolved = ws.cell(row=row, column=DEFECT_COL_RESOLVED).value or 0
+                cum_detected = ws.cell(row=row, column=DEFECT_COL_CUM_DETECTED).value or 0
+                cum_resolved = ws.cell(row=row, column=DEFECT_COL_CUM_RESOLVED).value or 0
+                cum_unresolved = ws.cell(row=row, column=DEFECT_COL_CUM_UNRESOLVED).value or 0
+
+                record = {
+                    "チーム名": team_name,
+                    "日付": date_converted,
+                    "検出欠陥数": int(detected),
+                    "対応欠陥数": int(resolved),
+                    "累積検出欠陥数": int(cum_detected),
+                    "累積対応欠陥数": int(cum_resolved),
+                    "累積未対応欠陥数": int(cum_unresolved),
+                }
+                defect_records.append(record)
+                record_count += 1
+
+            wb.close()
+            print(f"  ✅ 欠陥一覧({team_name}): {record_count}件")
+
+        except Exception as e:
+            print(f"  ⚠ 欠陥一覧({team_name}): エラー - {e}")
+
+    return defect_records
+
+
+# ===================================================================
 #  Excel出力
 # ===================================================================
 
-def write_excel(records, output_path, holidays=None, week_from=None, week_to=None):
+def write_excel(records, output_path, holidays=None, week_from=None, week_to=None, defect_records=None):
     """ダッシュボード＋明細シート＋進捗サマリー（チーム別）＋祝日マスタをExcelに出力
 
     Args:
@@ -1107,7 +1320,10 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
         holidays: 祝日リスト（省略時はデフォルト）
         week_from: 週集計の開始日（YYYY/MM/DD形式、省略可）
         week_to: 週集計の終了日（YYYY/MM/DD形式、省略可）
+        defect_records: 欠陥レコードのリスト（省略可）
     """
+    if defect_records is None:
+        defect_records = []
 
     if holidays is None:
         holidays = DEFAULT_HOLIDAYS
@@ -1147,9 +1363,27 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
         ws_team = wb.create_sheet(sheet_name)
         summary_info[team_name] = _write_summary_sheet(ws_team, team_recs, detail_data_start_row, len(records), holidays, team_name)
 
+    # --- 欠陥サマリーシート（欠陥データがある場合のみ）---
+    defect_summary_info = {}
+    if defect_records:
+        # チーム別に欠陥レコードを分類
+        defect_by_team = defaultdict(list)
+        for rec in defect_records:
+            defect_by_team[rec["チーム名"]].append(rec)
+
+        # ALL用の欠陥サマリー
+        ws_defect_all = wb.create_sheet("欠陥サマリー_ALL")
+        defect_summary_info["ALL"] = _write_defect_summary_sheet(ws_defect_all, defect_records, "ALL")
+
+        # チーム別の欠陥サマリー
+        for team_name in defect_by_team.keys():
+            sheet_name = f"欠陥サマリー_{team_name}"
+            ws_defect_team = wb.create_sheet(sheet_name)
+            defect_summary_info[team_name] = _write_defect_summary_sheet(ws_defect_team, defect_by_team[team_name], team_name)
+
     # --- ダッシュボードシート（サマリーシート作成後に作成）---
     ws_dashboard = wb.create_sheet("ダッシュボード")
-    _write_dashboard_sheet(ws_dashboard, summary_info, teams_in_data, wb, week_from, week_to)
+    _write_dashboard_sheet(ws_dashboard, summary_info, teams_in_data, wb, week_from, week_to, defect_summary_info)
 
     # シートの順序を調整
     # 目標の順序: ダッシュボード, 要対応一覧, 進捗サマリー_ALL, チーム別..., 明細, 祝日マスタ
@@ -1180,13 +1414,14 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
     print(f"     サマリーシート: ALL + {len(teams_in_data)}チーム")
 
 
-def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week_to=None):
+def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week_to=None, defect_summary_info=None):
     """ダッシュボードシート（5秒で状況把握）を作成
 
     構成:
         - 日次: 予定, 実績
         - 週次: 予定, 実績, 残数, 遅延（週範囲をセルに配置し数式で参照）
         - 総数: 総数, 予定, 実績, 残数, 遅延, 予定消化率, 実績消化率, 乖離, 状態
+        - 欠陥: 週検出, 累積検出, 累積対応, 累積未対応
 
     Args:
         ws: ダッシュボードシートのワークシート
@@ -1196,7 +1431,10 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         wb: ワークブック（チャート参照用）
         week_from: 週集計の開始日（YYYY/MM/DD形式、省略可）
         week_to: 週集計の終了日（YYYY/MM/DD形式、省略可）
+        defect_summary_info: 欠陥サマリーの参照情報（省略可）
     """
+    if defect_summary_info is None:
+        defect_summary_info = {}
     from openpyxl.chart import LineChart, Reference
     from openpyxl.chart.series import SeriesLabel
     from openpyxl.chart.axis import ChartLines
@@ -1897,7 +2135,72 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     )
 
     # =================================================================
-    # セクション3: 進捗推移チャート
+    # セクション3: 欠陥状況（欠陥データがある場合のみ）
+    # =================================================================
+    if defect_summary_info:
+        row += 3
+        ws.merge_cells(f'A{row}:P{row}')
+        ws[f'A{row}'] = "■ 欠陥状況"
+        ws[f'A{row}'].font = Font(name="游ゴシック", size=12, bold=True, color="505050")
+        ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
+        ws[f'A{row}'].alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[row].height = 24
+
+        row += 1
+        # ヘッダー行
+        defect_headers = ["チーム", "週検出", "累積検出", "累積対応", "累積未対応"]
+        for col, header in enumerate(defect_headers, 1):
+            cell = ws.cell(row=row, column=col, value=header)
+            cell.font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
+            cell.fill = PatternFill(start_color="C55A11", end_color="C55A11", fill_type="solid")  # オレンジ系
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = THIN_BORDER
+
+        defect_header_row = row
+        row += 1
+        defect_data_start = row
+
+        # データ行
+        for team_display in ordered_teams:
+            team_key = "ALL" if team_display == "全体" else team_display
+
+            if team_key in defect_summary_info:
+                info = defect_summary_info[team_key]
+                sheet_name = f"欠陥サマリー_{team_key}"
+
+                # 週検出 = SUMIFSで週範囲内の検出欠陥数合計
+                week_detected_formula = f"=IF(OR({WEEK_FROM_CELL}=\"\",{WEEK_TO_CELL}=\"\"),\"-\",SUMIFS('{sheet_name}'!C{info['data_start_row']}:C{info['data_end_row']},'{sheet_name}'!A{info['data_start_row']}:A{info['data_end_row']},\">=\"&{WEEK_FROM_CELL},'{sheet_name}'!A{info['data_start_row']}:A{info['data_end_row']},\"<=\"&{WEEK_TO_CELL}))"
+
+                ws.cell(row=row, column=1, value=team_display).border = THIN_BORDER
+                ws.cell(row=row, column=2, value=week_detected_formula).border = THIN_BORDER
+                ws.cell(row=row, column=3, value=info["total_detected"]).border = THIN_BORDER
+                ws.cell(row=row, column=4, value=info["total_resolved"]).border = THIN_BORDER
+                ws.cell(row=row, column=5, value=info["total_unresolved"]).border = THIN_BORDER
+
+                for col in range(1, 6):
+                    ws.cell(row=row, column=col).alignment = Alignment(horizontal="center", vertical="center")
+                    if col >= 2:
+                        ws.cell(row=row, column=col).number_format = "#,##0"
+
+                # 未対応が0より大きい場合は赤色
+                if info["total_unresolved"] > 0:
+                    ws.cell(row=row, column=5).fill = DANGER_FILL
+                    ws.cell(row=row, column=5).font = DANGER_FONT
+
+            else:
+                # データなし
+                ws.cell(row=row, column=1, value=team_display).border = THIN_BORDER
+                for col in range(2, 6):
+                    ws.cell(row=row, column=col, value="(未設定)").border = THIN_BORDER
+                    ws.cell(row=row, column=col).alignment = Alignment(horizontal="center", vertical="center")
+                    ws.cell(row=row, column=col).font = Font(color="808080")
+
+            row += 1
+
+        defect_data_end = row - 1
+
+    # =================================================================
+    # セクション4: 進捗推移チャート
     # =================================================================
     from openpyxl.chart.text import RichText
     from openpyxl.drawing.text import Paragraph, ParagraphProperties, CharacterProperties, Font as DrawingFont
@@ -2915,6 +3218,127 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
     }
 
 
+def _write_defect_summary_sheet(ws, defect_records, team_name="ALL"):
+    """欠陥サマリーシートを作成
+
+    Args:
+        ws: ワークシート
+        defect_records: 欠陥レコードのリスト
+        team_name: チーム名（"ALL"または具体的なチーム名）
+
+    Returns:
+        辞書: {"data_start_row": N, "data_end_row": M, ...}
+    """
+    from collections import defaultdict
+
+    # 日付でソートしてまとめる
+    daily_data = defaultdict(lambda: {
+        "検出欠陥数": 0,
+        "対応欠陥数": 0,
+        "累積検出欠陥数": 0,
+        "累積対応欠陥数": 0,
+        "累積未対応欠陥数": 0,
+    })
+
+    for rec in defect_records:
+        date_key = rec["日付"]
+        daily_data[date_key]["検出欠陥数"] += rec["検出欠陥数"]
+        daily_data[date_key]["対応欠陥数"] += rec["対応欠陥数"]
+        # 累積は最後のレコードを使用（チーム別の場合はチーム合計を再計算）
+        daily_data[date_key]["累積検出欠陥数"] = max(daily_data[date_key]["累積検出欠陥数"], rec["累積検出欠陥数"])
+        daily_data[date_key]["累積対応欠陥数"] = max(daily_data[date_key]["累積対応欠陥数"], rec["累積対応欠陥数"])
+        daily_data[date_key]["累積未対応欠陥数"] = max(daily_data[date_key]["累積未対応欠陥数"], rec["累積未対応欠陥数"])
+
+    # 日付順にソート
+    sorted_dates = sorted(daily_data.keys())
+
+    # ALLの場合は累積を再計算
+    if team_name == "ALL":
+        cum_detected = 0
+        cum_resolved = 0
+        for date_key in sorted_dates:
+            cum_detected += daily_data[date_key]["検出欠陥数"]
+            cum_resolved += daily_data[date_key]["対応欠陥数"]
+            daily_data[date_key]["累積検出欠陥数"] = cum_detected
+            daily_data[date_key]["累積対応欠陥数"] = cum_resolved
+            daily_data[date_key]["累積未対応欠陥数"] = cum_detected - cum_resolved
+
+    # === ヘッダー行 ===
+    header_row = 4
+    headers = ["日付", "曜", "検出", "対応", "累積検出", "累積対応", "累積未対応"]
+
+    # タイトル
+    ws['A1'] = f"欠陥サマリー - {team_name}"
+    ws['A1'].font = Font(name="游ゴシック", size=14, bold=True)
+    ws.row_dimensions[1].height = 25
+
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col, value=header)
+        cell.font = Font(name="游ゴシック", size=10, bold=True)
+        cell.fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+        cell.font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
+        cell.alignment = Alignment(horizontal="center", vertical="center")
+        cell.border = THIN_BORDER
+
+    # === データ行 ===
+    data_start_row = 5
+
+    for i, date_key in enumerate(sorted_dates):
+        row = data_start_row + i
+        data = daily_data[date_key]
+
+        # 日付
+        try:
+            date_obj = datetime.strptime(date_key, "%Y/%m/%d")
+            ws.cell(row=row, column=1, value=date_obj)
+            ws.cell(row=row, column=1).number_format = "YYYY/MM/DD"
+        except:
+            ws.cell(row=row, column=1, value=date_key)
+
+        # 曜日
+        ws.cell(row=row, column=2, value=f'=CHOOSE(WEEKDAY(A{row},2),"月","火","水","木","金","土","日")')
+
+        # データ
+        ws.cell(row=row, column=3, value=data["検出欠陥数"])
+        ws.cell(row=row, column=4, value=data["対応欠陥数"])
+        ws.cell(row=row, column=5, value=data["累積検出欠陥数"])
+        ws.cell(row=row, column=6, value=data["累積対応欠陥数"])
+        ws.cell(row=row, column=7, value=data["累積未対応欠陥数"])
+
+        # スタイル
+        for col in range(1, 8):
+            cell = ws.cell(row=row, column=col)
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = THIN_BORDER
+            if col >= 3:
+                cell.number_format = "#,##0"
+
+    last_data_row = data_start_row + len(sorted_dates) - 1
+
+    # === 列幅 ===
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 4
+    ws.column_dimensions['C'].width = 8
+    ws.column_dimensions['D'].width = 8
+    ws.column_dimensions['E'].width = 10
+    ws.column_dimensions['F'].width = 10
+    ws.column_dimensions['G'].width = 12
+
+    # フリーズ
+    ws.freeze_panes = 'A5'
+
+    # 最新の累積値を取得
+    latest_data = daily_data[sorted_dates[-1]] if sorted_dates else {}
+
+    return {
+        "data_start_row": data_start_row,
+        "data_end_row": last_data_row,
+        "total_detected": latest_data.get("累積検出欠陥数", 0),
+        "total_resolved": latest_data.get("累積対応欠陥数", 0),
+        "total_unresolved": latest_data.get("累積未対応欠陥数", 0),
+    }
+
+
 # ===================================================================
 #  メイン処理
 # ===================================================================
@@ -3004,6 +3428,7 @@ def main():
         include_subfolders = config["include_subfolders"]
         week_from = config.get("week_from")
         week_to = config.get("week_to")
+        defect_files = config.get("defect_files")
 
     # キャッシュファイルのパス（出力ファイルと同じディレクトリ）
     cache_dir = os.path.dirname(output_path)
@@ -3015,6 +3440,12 @@ def main():
     print(f"  対象シート:   {SHEET_PREFIX}* で始まるシート\n")
 
     records = collect_data(folder_path, cache_file, include_subfolders)
+
+    # 欠陥データの収集
+    defect_records = []
+    if defect_files:
+        print("\n  欠陥一覧ファイルの読み込み:")
+        defect_records = collect_defect_data(defect_files)
 
     if not records:
         msg = (
@@ -3033,7 +3464,7 @@ def main():
         sys.exit(1)
 
     try:
-        write_excel(records, output_path, week_from=week_from, week_to=week_to)
+        write_excel(records, output_path, week_from=week_from, week_to=week_to, defect_records=defect_records)
     except PermissionError as e:
         error_msg = str(e)
         print(f"\n  ❌ エラー: {error_msg}")
