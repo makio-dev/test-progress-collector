@@ -1373,29 +1373,56 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
 
         # ALL用の欠陥サマリー
         ws_defect_all = wb.create_sheet("欠陥サマリー_ALL")
-        defect_summary_info["ALL"] = _write_defect_summary_sheet(ws_defect_all, defect_records, "ALL")
+        defect_summary_info["ALL"] = _write_defect_summary_sheet(ws_defect_all, defect_records, "ALL", holidays)
 
         # チーム別の欠陥サマリー
         for team_name in defect_by_team.keys():
             sheet_name = f"欠陥サマリー_{team_name}"
             ws_defect_team = wb.create_sheet(sheet_name)
-            defect_summary_info[team_name] = _write_defect_summary_sheet(ws_defect_team, defect_by_team[team_name], team_name)
+            defect_summary_info[team_name] = _write_defect_summary_sheet(ws_defect_team, defect_by_team[team_name], team_name, holidays)
 
     # --- ダッシュボードシート（サマリーシート作成後に作成）---
     ws_dashboard = wb.create_sheet("ダッシュボード")
     _write_dashboard_sheet(ws_dashboard, summary_info, teams_in_data, wb, week_from, week_to, defect_summary_info)
 
     # シートの順序を調整
-    # 目標の順序: ダッシュボード, 要対応一覧, 進捗サマリー_ALL, チーム別..., 明細, 祝日マスタ
+    # 目標の順序: ダッシュボード, 要対応一覧, 進捗サマリー_ALL, チーム別進捗..., 欠陥サマリー_ALL, チーム別欠陥..., 明細, 祝日マスタ
     sheet_order = ["ダッシュボード", "要対応一覧", "進捗サマリー_ALL"]
     for team_name in teams_in_data:
         sheet_order.append(f"進捗サマリー_{team_name}")
+    # 欠陥サマリーシートを追加
+    if "欠陥サマリー_ALL" in wb.sheetnames:
+        sheet_order.append("欠陥サマリー_ALL")
+        for team_name in teams_in_data:
+            defect_sheet = f"欠陥サマリー_{team_name}"
+            if defect_sheet in wb.sheetnames:
+                sheet_order.append(defect_sheet)
     sheet_order.extend(["明細", "祝日マスタ"])
 
     # シートを並び替え
     for i, sheet_name in enumerate(sheet_order):
         if sheet_name in wb.sheetnames:
             wb.move_sheet(sheet_name, offset=i - wb.sheetnames.index(sheet_name))
+
+    # シートタブに色付け（カテゴリ別）
+    TAB_COLOR_DASHBOARD = "ED7D31"    # オレンジ
+    TAB_COLOR_ALERT = "C00000"        # 赤
+    TAB_COLOR_SUMMARY_ALL = "2B5797"  # 濃い青
+    TAB_COLOR_SUMMARY_TEAM = "8FAADC" # 薄い青
+    TAB_COLOR_GRAY = "7F7F7F"         # グレー
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        if sheet_name == "ダッシュボード":
+            ws.sheet_properties.tabColor = TAB_COLOR_DASHBOARD
+        elif sheet_name == "要対応一覧":
+            ws.sheet_properties.tabColor = TAB_COLOR_ALERT
+        elif sheet_name == "進捗サマリー_ALL" or sheet_name == "欠陥サマリー_ALL":
+            ws.sheet_properties.tabColor = TAB_COLOR_SUMMARY_ALL
+        elif sheet_name.startswith("進捗サマリー_") or sheet_name.startswith("欠陥サマリー_"):
+            ws.sheet_properties.tabColor = TAB_COLOR_SUMMARY_TEAM
+        elif sheet_name in ["明細", "祝日マスタ"]:
+            ws.sheet_properties.tabColor = TAB_COLOR_GRAY
 
     # --- 保存 ---
     try:
@@ -2152,17 +2179,20 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         for col, header in enumerate(defect_headers, 1):
             cell = ws.cell(row=row, column=col, value=header)
             cell.font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
-            cell.fill = PatternFill(start_color="C55A11", end_color="C55A11", fill_type="solid")  # オレンジ系
+            cell.fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")  # 赤系
             cell.alignment = Alignment(horizontal="center", vertical="center")
             cell.border = THIN_BORDER
 
         defect_header_row = row
         row += 1
-        defect_data_start = row
 
         # データ行
         for team_display in ordered_teams:
             team_key = "ALL" if team_display == "全体" else team_display
+
+            # 全体行は色付け
+            is_total_row = (team_display == "全体")
+            row_fill = TOTAL_FILL if is_total_row else None
 
             if team_key in defect_summary_info:
                 info = defect_summary_info[team_key]
@@ -2178,26 +2208,33 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
                 ws.cell(row=row, column=5, value=info["total_unresolved"]).border = THIN_BORDER
 
                 for col in range(1, 6):
-                    ws.cell(row=row, column=col).alignment = Alignment(horizontal="center", vertical="center")
+                    cell = ws.cell(row=row, column=col)
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                    if row_fill:
+                        cell.fill = row_fill
                     if col >= 2:
-                        ws.cell(row=row, column=col).number_format = "#,##0"
+                        cell.number_format = "#,##0"
 
-                # 未対応が0より大きい場合は赤色
-                if info["total_unresolved"] > 0:
+                # 未対応が0より大きい場合は赤色（全体行以外）
+                if info["total_unresolved"] > 0 and not is_total_row:
                     ws.cell(row=row, column=5).fill = DANGER_FILL
                     ws.cell(row=row, column=5).font = DANGER_FONT
 
             else:
                 # データなし
                 ws.cell(row=row, column=1, value=team_display).border = THIN_BORDER
+                if row_fill:
+                    ws.cell(row=row, column=1).fill = row_fill
                 for col in range(2, 6):
-                    ws.cell(row=row, column=col, value="(未設定)").border = THIN_BORDER
-                    ws.cell(row=row, column=col).alignment = Alignment(horizontal="center", vertical="center")
-                    ws.cell(row=row, column=col).font = Font(color="808080")
+                    cell = ws.cell(row=row, column=col)
+                    cell.value = "(未設定)"
+                    cell.border = THIN_BORDER
+                    cell.alignment = Alignment(horizontal="center", vertical="center")
+                    cell.font = Font(color="808080")
+                    if row_fill:
+                        cell.fill = row_fill
 
             row += 1
-
-        defect_data_end = row - 1
 
     # =================================================================
     # セクション4: 進捗推移チャート
@@ -2238,7 +2275,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     # チャート配置（pt）
     IMPL_CHART_LEFT_PT = 0       # 実施チャート左端
     VERIFY_CHART_LEFT_PT = 388   # 検証チャート左端（380 + 8pt gap）
-    CHART_TOP_START_PT = 480     # 最初のチャート（全体）のtop位置（23行目付近に配置）
+    CHART_TOP_START_PT = 640     # 最初のチャート（全体）のtop位置（32行目下に配置）
     CHART_VERTICAL_GAP_PT = 328  # チャート縦間隔（320 + 8pt gap）
 
     # PlotAreaレイアウト比率
@@ -2388,7 +2425,8 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         )
         ws.add_chart(impl_chart)
 
-        # 検証チャート（右）
+        # 検証チャート（右）- 欠陥累計を第2軸で表示
+        from openpyxl.chart import LineChart as LineChart2
         verify_chart = LineChart()
         verify_chart.title = f"{team} - 検証"
         verify_chart.style = 10
@@ -2407,7 +2445,6 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         verify_chart.add_data(verify_actual_data)
         verify_chart.set_categories(verify_dates)
 
-        # 系列名と色を設定（検証予定=緑、実績=オレンジ）
         # 系列名と色を設定（検証予定=緑・破線、実績=オレンジ・実線）
         if len(verify_chart.series) >= 1:
             verify_chart.series[0].tx = SeriesLabel(v="予定")
@@ -2448,9 +2485,9 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws.column_dimensions['B'].width = 8    # 日次予定
     ws.column_dimensions['C'].width = 8    # 日次実績
     ws.column_dimensions['D'].width = 8    # 週予定
-    ws.column_dimensions['E'].width = 8    # 週実績
+    ws.column_dimensions['E'].width = 10   # 週実績（広げた）
     ws.column_dimensions['F'].width = 8    # 週残数
-    ws.column_dimensions['G'].width = 8    # 週遅延
+    ws.column_dimensions['G'].width = 10   # 週遅延（広げた）
     ws.column_dimensions['H'].width = 8    # 総数
     ws.column_dimensions['I'].width = 10   # 予定累計
     ws.column_dimensions['J'].width = 10   # 実績累計
@@ -2603,10 +2640,13 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records):
         row += 1
         ws.cell(row=row, column=1, value="遅延しているテストケースはありません").font = Font(name="游ゴシック", size=11, color="2E7D32", italic=True)
 
-    # 列幅設定
-    delayed_widths = [12, 14, 20, 18, 14, 14, 14, 14]
+    # 列幅設定（C,D列を広げた）
+    delayed_widths = [12, 14, 30, 25, 14, 14, 14, 14]
     for i, w in enumerate(delayed_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
+
+    # ウィンドウ枠固定（ヘッダー行まで固定）
+    ws.freeze_panes = f'A{data_start}'
 
 
 def _write_holiday_sheet(ws, holidays):
@@ -3218,18 +3258,26 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
     }
 
 
-def _write_defect_summary_sheet(ws, defect_records, team_name="ALL"):
+def _write_defect_summary_sheet(ws, defect_records, team_name="ALL", holidays=None):
     """欠陥サマリーシートを作成
 
     Args:
         ws: ワークシート
         defect_records: 欠陥レコードのリスト
         team_name: チーム名（"ALL"または具体的なチーム名）
+        holidays: 祝日リスト（datetime.dateのリスト）
 
     Returns:
         辞書: {"data_start_row": N, "data_end_row": M, ...}
     """
     from collections import defaultdict
+
+    if holidays is None:
+        holidays = []
+    holiday_set = set(holidays)
+
+    # グリッド線を非表示
+    ws.sheet_view.showGridLines = False
 
     # 日付でソートしてまとめる
     daily_data = defaultdict(lambda: {
@@ -3249,16 +3297,48 @@ def _write_defect_summary_sheet(ws, defect_records, team_name="ALL"):
         daily_data[date_key]["累積対応欠陥数"] = max(daily_data[date_key]["累積対応欠陥数"], rec["累積対応欠陥数"])
         daily_data[date_key]["累積未対応欠陥数"] = max(daily_data[date_key]["累積未対応欠陥数"], rec["累積未対応欠陥数"])
 
-    # 日付順にソート
-    sorted_dates = sorted(daily_data.keys())
+    # 日付の範囲を特定し、土日含む全日をリスト
+    if not daily_data:
+        sorted_dates = []
+    else:
+        date_objs = []
+        for date_key in daily_data.keys():
+            try:
+                date_objs.append(datetime.strptime(date_key, "%Y/%m/%d").date())
+            except:
+                pass
+        if date_objs:
+            min_date = min(date_objs)
+            max_date = max(date_objs)
+            # 全日のリストを生成（土日含む）
+            all_dates = []
+            current = min_date
+            while current <= max_date:
+                all_dates.append(current)
+                current += timedelta(days=1)
+            sorted_dates = [d.strftime("%Y/%m/%d") for d in all_dates]
+        else:
+            sorted_dates = sorted(daily_data.keys())
 
     # ALLの場合は累積を再計算
     if team_name == "ALL":
         cum_detected = 0
         cum_resolved = 0
         for date_key in sorted_dates:
-            cum_detected += daily_data[date_key]["検出欠陥数"]
-            cum_resolved += daily_data[date_key]["対応欠陥数"]
+            if date_key in daily_data:
+                cum_detected += daily_data[date_key]["検出欠陥数"]
+                cum_resolved += daily_data[date_key]["対応欠陥数"]
+            daily_data[date_key]["累積検出欠陥数"] = cum_detected
+            daily_data[date_key]["累積対応欠陥数"] = cum_resolved
+            daily_data[date_key]["累積未対応欠陥数"] = cum_detected - cum_resolved
+    else:
+        # チーム別も累積を再計算
+        cum_detected = 0
+        cum_resolved = 0
+        for date_key in sorted_dates:
+            if date_key in daily_data:
+                cum_detected += daily_data[date_key]["検出欠陥数"]
+                cum_resolved += daily_data[date_key]["対応欠陥数"]
             daily_data[date_key]["累積検出欠陥数"] = cum_detected
             daily_data[date_key]["累積対応欠陥数"] = cum_resolved
             daily_data[date_key]["累積未対応欠陥数"] = cum_detected - cum_resolved
@@ -3283,27 +3363,45 @@ def _write_defect_summary_sheet(ws, defect_records, team_name="ALL"):
     # === データ行 ===
     data_start_row = 5
 
+    # 土日・祝祭日の色（グレー）
+    NON_WORKING_FILL = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+
     for i, date_key in enumerate(sorted_dates):
         row = data_start_row + i
-        data = daily_data[date_key]
+        data = daily_data.get(date_key, {
+            "検出欠陥数": 0,
+            "対応欠陥数": 0,
+            "累積検出欠陥数": daily_data[date_key]["累積検出欠陥数"] if date_key in daily_data else 0,
+            "累積対応欠陥数": daily_data[date_key]["累積対応欠陥数"] if date_key in daily_data else 0,
+            "累積未対応欠陥数": daily_data[date_key]["累積未対応欠陥数"] if date_key in daily_data else 0,
+        })
 
         # 日付
         try:
             date_obj = datetime.strptime(date_key, "%Y/%m/%d")
             ws.cell(row=row, column=1, value=date_obj)
             ws.cell(row=row, column=1).number_format = "YYYY/MM/DD"
+            weekday = date_obj.weekday()  # 0=月曜, 6=日曜
+            is_holiday = date_obj.date() in holiday_set
         except:
             ws.cell(row=row, column=1, value=date_key)
+            weekday = None
+            is_holiday = False
 
         # 曜日
         ws.cell(row=row, column=2, value=f'=CHOOSE(WEEKDAY(A{row},2),"月","火","水","木","金","土","日")')
 
-        # データ
+        # データ（累積はdaily_dataから取得）
         ws.cell(row=row, column=3, value=data["検出欠陥数"])
         ws.cell(row=row, column=4, value=data["対応欠陥数"])
-        ws.cell(row=row, column=5, value=data["累積検出欠陥数"])
-        ws.cell(row=row, column=6, value=data["累積対応欠陥数"])
-        ws.cell(row=row, column=7, value=data["累積未対応欠陥数"])
+        ws.cell(row=row, column=5, value=daily_data[date_key]["累積検出欠陥数"])
+        ws.cell(row=row, column=6, value=daily_data[date_key]["累積対応欠陥数"])
+        ws.cell(row=row, column=7, value=daily_data[date_key]["累積未対応欠陥数"])
+
+        # 行の背景色を決定（土日・祝祭日はグレー）
+        row_fill = None
+        if is_holiday or weekday == 5 or weekday == 6:  # 土曜・日曜・祝日
+            row_fill = NON_WORKING_FILL
 
         # スタイル
         for col in range(1, 8):
@@ -3312,8 +3410,10 @@ def _write_defect_summary_sheet(ws, defect_records, team_name="ALL"):
             cell.border = THIN_BORDER
             if col >= 3:
                 cell.number_format = "#,##0"
+            if row_fill:
+                cell.fill = row_fill
 
-    last_data_row = data_start_row + len(sorted_dates) - 1
+    last_data_row = data_start_row + len(sorted_dates) - 1 if sorted_dates else data_start_row
 
     # === 列幅 ===
     ws.column_dimensions['A'].width = 12
@@ -3384,6 +3484,10 @@ def main():
                         help="サブフォルダを含めない")
     parser.add_argument("--week-from", help="週集計の開始日（YYYY/MM/DD または YYYYMMDD）")
     parser.add_argument("--week-to", help="週集計の終了日（YYYY/MM/DD または YYYYMMDD）")
+    parser.add_argument("--defect-online", help="欠陥一覧ファイル（オンライン）")
+    parser.add_argument("--defect-batch", help="欠陥一覧ファイル（バッチ）")
+    parser.add_argument("--defect-infra", help="欠陥一覧ファイル（基盤）")
+    parser.add_argument("--defect-ops", help="欠陥一覧ファイル（運用）")
     args = parser.parse_args()
 
     # CLIモード or GUIウィザードモード
@@ -3415,6 +3519,17 @@ def main():
                 print(f"エラー: --week-to の日付形式が不正です: {args.week_to}")
                 sys.exit(1)
             week_to = to_normalized
+
+        # CLIモードの欠陥ファイル処理
+        defect_files = {}
+        if args.defect_online and os.path.exists(args.defect_online):
+            defect_files["オンライン"] = args.defect_online
+        if args.defect_batch and os.path.exists(args.defect_batch):
+            defect_files["バッチ"] = args.defect_batch
+        if args.defect_infra and os.path.exists(args.defect_infra):
+            defect_files["基盤"] = args.defect_infra
+        if args.defect_ops and os.path.exists(args.defect_ops):
+            defect_files["運用"] = args.defect_ops
     else:
         # --- ウィザードUI実行 ---
         config = run_wizard()
