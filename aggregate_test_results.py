@@ -2275,7 +2275,8 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     # チャート配置（pt）
     IMPL_CHART_LEFT_PT = 0       # 実施チャート左端
     VERIFY_CHART_LEFT_PT = 388   # 検証チャート左端（380 + 8pt gap）
-    CHART_TOP_START_PT = 640     # 最初のチャート（全体）のtop位置（32行目下に配置）
+    # 欠陥セクションの有無でチャート開始位置を調整
+    CHART_TOP_START_PT = 640 if defect_summary_info else 500  # 欠陥あり:32行目下、なし:26行目下
     CHART_VERTICAL_GAP_PT = 328  # チャート縦間隔（320 + 8pt gap）
 
     # PlotAreaレイアウト比率
