@@ -3532,14 +3532,19 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
     DD_COL_RELEASE_DONE = "U"
     DD_COL_VERIFY = "V"
 
-    # 配色
+    # 配色（赤系の明暗で階層表現）
     SECTION_HEADER_FONT = Font(name="游ゴシック", size=12, bold=True, color="8B0000")
-    TABLE_HEADER_FILL = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
 
-    # カテゴリ行用の配色（ヘッダーと同色で統一）
-    CAT_FILL = TABLE_HEADER_FILL
+    # カテゴリ行: 最も濃い赤
+    CAT_FILL = PatternFill(start_color="8B0000", end_color="8B0000", fill_type="solid")
     CAT_FONT = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
     CAT_ALIGN = Alignment(horizontal="center", vertical="center")
+
+    # ヘッダー行: やや明るい赤
+    TABLE_HEADER_FILL = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
+
+    # 全体(合計)行: 薄い赤背景
+    DEFECT_TOTAL_FILL = PatternFill(start_color="F2DCDB", end_color="F2DCDB", fill_type="solid")
 
     def _write_category_row(cat_row, header_row, categories, headers=None):
         """カテゴリ行を書き込む。空ラベルのセルは縦にヘッダー行と結合。
@@ -3628,7 +3633,7 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
         cell = ws.cell(row=row, column=col, value=value)
         if is_total:
             cell.font = Font(name="游ゴシック", size=10, bold=True)
-            cell.fill = TOTAL_FILL
+            cell.fill = DEFECT_TOTAL_FILL
         else:
             cell.font = DATA_FONT
         cell.alignment = DATA_ALIGN_CENTER
@@ -3643,34 +3648,149 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
     ws.row_dimensions[current_row].height = 30
     current_row += 1
 
-    # 基準日表示
-    ws.cell(row=current_row, column=1, value=f"基準日: {base_date.strftime('%Y/%m/%d')}")
-    ws.cell(row=current_row, column=1).font = Font(name="游ゴシック", size=10, color="666666")
+    # 基準日・週範囲（ダッシュボードシートを参照）
+    label_font = Font(name="游ゴシック", size=11, bold=True, color="505050")
+    value_font = Font(name="游ゴシック", size=11, bold=True, color="2B5797")
+    label_align = Alignment(horizontal="right", vertical="center")
+    value_align = Alignment(horizontal="center", vertical="center")
+    ws.row_dimensions[current_row].height = 22
+
+    # 基準日ラベル (A2)
+    ws.cell(row=current_row, column=1, value="基準日:")
+    ws.cell(row=current_row, column=1).font = label_font
+    ws.cell(row=current_row, column=1).alignment = label_align
+
+    # 基準日値 (B2:D2) — ダッシュボード参照
+    ws.merge_cells(start_row=current_row, start_column=2, end_row=current_row, end_column=4)
+    ref_cell = ws.cell(row=current_row, column=2, value="=ダッシュボード!$B$2")
+    ref_cell.font = value_font
+    ref_cell.alignment = value_align
+    ref_cell.border = THIN_BORDER
+    ref_cell.number_format = "YYYY/MM/DD (AAA)"
+    ws.cell(row=current_row, column=3).border = THIN_BORDER
+    ws.cell(row=current_row, column=4).border = THIN_BORDER
+
+    # 週範囲From (F2)
+    ws.cell(row=current_row, column=6, value="週範囲From:")
+    ws.cell(row=current_row, column=6).font = Font(name="游ゴシック", size=10, color="505050")
+    ws.cell(row=current_row, column=6).alignment = label_align
+
+    # From値 (G2) — ダッシュボード参照
+    from_cell = ws.cell(row=current_row, column=7, value="=ダッシュボード!$G$2")
+    from_cell.font = Font(name="游ゴシック", size=9, bold=True, color="2B5797")
+    from_cell.alignment = value_align
+    from_cell.border = THIN_BORDER
+    from_cell.number_format = "YYYY/MM/DD"
+
+    # To (H2)
+    ws.cell(row=current_row, column=8, value="To:")
+    ws.cell(row=current_row, column=8).font = Font(name="游ゴシック", size=10, color="505050")
+    ws.cell(row=current_row, column=8).alignment = label_align
+
+    # To値 (I2) — ダッシュボード参照
+    to_cell = ws.cell(row=current_row, column=9, value="=ダッシュボード!$I$2")
+    to_cell.font = Font(name="游ゴシック", size=9, bold=True, color="2B5797")
+    to_cell.alignment = value_align
+    to_cell.border = THIN_BORDER
+    to_cell.number_format = "YYYY/MM/DD"
+
     current_row += 2
 
     # 表示チーム順序（全体 + チーム）— ヘッダー直後に合計行
     display_teams = ["全体"] + teams
 
     # =======================================
-    # セクション1: 欠陥サマリー
+    # セクション1: 欠陥サマリー（対応状況別）
     # =======================================
     _write_section_header(current_row, "1. 欠陥サマリー")
+    current_row += 1
+
+    all_statuses = sorted(set(r["対応状況"] for r in defect_detail_records if r["対応状況"]))
+    status_headers = ["チーム"] + all_statuses + ["合計", "新規検出", "週検出", "累積検出"]
+
+    # カテゴリ行
+    # チーム(1) | 対応状況(2 ~ len+1) | 合計(len+2) | 検出状況(len+3 ~ len+5)
+    s_end = len(all_statuses) + 1
+    sum_col_s1 = s_end + 1
+    det_start = sum_col_s1 + 1
+    det_end = det_start + 2
+    s1_cats = [
+        (1, 1, ""),
+        (2, s_end, "対応状況"),
+        (sum_col_s1, sum_col_s1, ""),
+        (det_start, det_end, "検出状況"),
+    ]
+    _write_category_row(current_row, current_row + 1, s1_cats, headers=status_headers)
+    s1_merged = {c for s, e, l in s1_cats if not l for c in range(s, e + 1)}
+    current_row += 1
+
+    for col, header in enumerate(status_headers, 1):
+        if col in s1_merged:
+            continue
+        cell = ws.cell(row=current_row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = TABLE_HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+    current_row += 1
+
+    s1_data_start = current_row
+    for team in display_teams:
+        is_total = (team == "全体")
+        sn, ds, de = _ref(team)
+
+        _write_data_cell(current_row, 1, team, is_total)
+
+        # 対応状況別カウント（COUNTIFS数式）
+        for si, status in enumerate(all_statuses):
+            formula = f'=COUNTIFS(\'{sn}\'!{DD_COL_STATUS}${ds}:{DD_COL_STATUS}${de},"{status}")'
+            _write_data_cell(current_row, si + 2, formula, is_total)
+
+        # 合計列（対応状況列のSUM）
+        sum_col = len(all_statuses) + 2
+        first_col_letter = get_column_letter(2)
+        last_col_letter = get_column_letter(sum_col - 1)
+        _write_data_cell(current_row, sum_col,
+            f'=SUM({first_col_letter}{current_row}:{last_col_letter}{current_row})', is_total)
+
+        base_col = sum_col + 1
+        # 新規検出: ダッシュボードの基準日($B$2)の前営業日〜基準日（祝日マスタ参照）
+        _write_data_cell(current_row, base_col,
+            f"=COUNTIFS('{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\">=\"&WORKDAY('ダッシュボード'!$B$2,-1,'祝日マスタ'!$A$5:$A$500),'{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\"<=\"&'ダッシュボード'!$B$2)",
+            is_total)
+        # 週検出: ダッシュボードの週範囲($G$2〜$I$2)を参照
+        _write_data_cell(current_row, base_col + 1,
+            f"=COUNTIFS('{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\">=\"&'ダッシュボード'!$G$2,'{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\"<=\"&'ダッシュボード'!$I$2)",
+            is_total)
+        # 累積検出
+        _write_data_cell(current_row, base_col + 2,
+            f'=COUNTA(\'{sn}\'!{DD_COL_STATUS}${ds}:{DD_COL_STATUS}${de})',
+            is_total)
+        current_row += 1
+
+    _apply_cat_internal_borders(s1_cats, s1_data_start - 1, current_row - 1)
+    current_row += 2
+
+    # =======================================
+    # セクション2: 予定超過・滞留状況
+    # =======================================
+    _write_section_header(current_row, "2. 予定超過・滞留状況")
     current_row += 1
 
     # カテゴリ行
     # チーム(1) | 未完了(2) | 予定超過(3-7) | 滞留7日超(8-12)
     summary_headers = ["チーム", "未完了", "調査", "対応", "横展開", "検証", "合計", "調査", "対応", "横展開", "検証", "合計"]
-    s1_cats = [
+    s2_cats = [
         (1, 1, ""),
         (2, 2, ""),
         (3, 7, "予定超過"),
         (8, 12, "滞留(7日超)"),
     ]
-    _write_category_row(current_row, current_row + 1, s1_cats, headers=summary_headers)
-    s1_merged = {c for s, e, l in s1_cats if not l for c in range(s, e + 1)}
+    _write_category_row(current_row, current_row + 1, s2_cats, headers=summary_headers)
+    s2_merged = {c for s, e, l in s2_cats if not l for c in range(s, e + 1)}
     current_row += 1
     for col, header in enumerate(summary_headers, 1):
-        if col not in s1_merged:
+        if col not in s2_merged:
             cell = ws.cell(row=current_row, column=col, value=header)
             cell.font = HEADER_FONT
             cell.fill = TABLE_HEADER_FILL
@@ -3678,9 +3798,7 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
             cell.border = THIN_BORDER
     current_row += 1
 
-    summary_data_start = current_row
-    base_date_str = base_date.strftime("%Y/%m/%d")
-    stagnant_date_str = (base_date - timedelta(days=7)).strftime("%Y/%m/%d")
+    s2_data_start = current_row
 
     for team in display_teams:
         is_total = (team == "全体")
@@ -3735,79 +3853,6 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
         # 合計
         _write_data_cell(current_row, 12,
             f'=SUM(H{current_row}:K{current_row})',
-            is_total)
-        current_row += 1
-
-    _apply_cat_internal_borders(s1_cats, summary_data_start - 1, current_row - 1)
-    current_row += 2
-
-    # =======================================
-    # セクション2: 対応状況別欠陥数
-    # =======================================
-    _write_section_header(current_row, "2. 対応状況別欠陥数")
-    current_row += 1
-
-    all_statuses = sorted(set(r["対応状況"] for r in defect_detail_records if r["対応状況"]))
-    status_headers = ["チーム"] + all_statuses + ["合計", "新規検出", "週検出", "累積検出"]
-
-    # カテゴリ行
-    # チーム(1) | 対応状況(2 ~ len+1) | 合計(len+2) | 検出状況(len+3 ~ len+5)
-    s_end = len(all_statuses) + 1
-    sum_col_s2 = s_end + 1
-    det_start = sum_col_s2 + 1
-    det_end = det_start + 2
-    s2_cats = [
-        (1, 1, ""),
-        (2, s_end, "対応状況"),
-        (sum_col_s2, sum_col_s2, ""),
-        (det_start, det_end, "検出状況"),
-    ]
-    _write_category_row(current_row, current_row + 1, s2_cats, headers=status_headers)
-    s2_merged = {c for s, e, l in s2_cats if not l for c in range(s, e + 1)}
-    current_row += 1
-
-    for col, header in enumerate(status_headers, 1):
-        if col in s2_merged:
-            continue
-        cell = ws.cell(row=current_row, column=col, value=header)
-        cell.font = HEADER_FONT
-        cell.fill = TABLE_HEADER_FILL
-        cell.alignment = HEADER_ALIGN
-        cell.border = THIN_BORDER
-    s2_header_row = current_row
-    current_row += 1
-
-    s2_data_start = current_row
-    for team in display_teams:
-        is_total = (team == "全体")
-        sn, ds, de = _ref(team)
-
-        _write_data_cell(current_row, 1, team, is_total)
-
-        # 対応状況別カウント（COUNTIFS数式）
-        for si, status in enumerate(all_statuses):
-            formula = f'=COUNTIFS(\'{sn}\'!{DD_COL_STATUS}${ds}:{DD_COL_STATUS}${de},"{status}")'
-            _write_data_cell(current_row, si + 2, formula, is_total)
-
-        # 合計列（対応状況列のSUM）
-        sum_col = len(all_statuses) + 2
-        first_col_letter = get_column_letter(2)
-        last_col_letter = get_column_letter(sum_col - 1)
-        _write_data_cell(current_row, sum_col,
-            f'=SUM({first_col_letter}{current_row}:{last_col_letter}{current_row})', is_total)
-
-        base_col = sum_col + 1
-        # 新規検出: ダッシュボードの基準日($B$2)の前営業日〜基準日（祝日マスタ参照）
-        _write_data_cell(current_row, base_col,
-            f"=COUNTIFS('{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\">=\"&WORKDAY('ダッシュボード'!$B$2,-1,'祝日マスタ'!$A$5:$A$500),'{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\"<=\"&'ダッシュボード'!$B$2)",
-            is_total)
-        # 週検出: ダッシュボードの週範囲($G$2〜$I$2)を参照
-        _write_data_cell(current_row, base_col + 1,
-            f"=COUNTIFS('{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\">=\"&'ダッシュボード'!$G$2,'{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\"<=\"&'ダッシュボード'!$I$2)",
-            is_total)
-        # 累積検出
-        _write_data_cell(current_row, base_col + 2,
-            f'=COUNTA(\'{sn}\'!{DD_COL_STATUS}${ds}:{DD_COL_STATUS}${de})',
             is_total)
         current_row += 1
 
