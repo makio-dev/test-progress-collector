@@ -3528,6 +3528,8 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
     DD_COL_LATERAL_EXISTS = "P"
     DD_COL_LATERAL_PLAN = "R"
     DD_COL_LATERAL_DONE = "S"
+    DD_COL_RELEASE_PLAN = "T"
+    DD_COL_RELEASE_DONE = "U"
     DD_COL_VERIFY = "V"
 
     # 配色
@@ -3656,13 +3658,13 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
     current_row += 1
 
     # カテゴリ行
-    # チーム(1) | 全般(2-4) | 予定超過(5-7) | 横展開(8)
-    summary_headers = ["チーム", "未完了", "遅延", "滞留(7日超)", "調査予定超過", "対応予定超過", "横展開/検証超過", "横展開未完了"]
+    # チーム(1) | 未完了(2) | 予定超過(3-7) | 滞留7日超(8-12)
+    summary_headers = ["チーム", "未完了", "調査", "対応", "横展開", "検証", "合計", "調査", "対応", "横展開", "検証", "合計"]
     s1_cats = [
         (1, 1, ""),
-        (2, 4, "全般"),
-        (5, 7, "予定超過"),
-        (8, 8, "横展開"),
+        (2, 2, ""),
+        (3, 7, "予定超過"),
+        (8, 12, "滞留(7日超)"),
     ]
     _write_category_row(current_row, current_row + 1, s1_cats, headers=summary_headers)
     s1_merged = {c for s, e, l in s1_cats if not l for c in range(s, e + 1)}
@@ -3684,34 +3686,55 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
         is_total = (team == "全体")
         sn, ds, de = _ref(team)
 
-        # 未完了: 検証日(V)が空
+        bd = f"DATE({base_date.year},{base_date.month},{base_date.day})"
         _write_data_cell(current_row, 1, team, is_total)
+
+        # 未完了: 検証日(V)が空
         _write_data_cell(current_row, 2, f"=COUNTBLANK('{sn}'!{DD_COL_VERIFY}${ds}:{DD_COL_VERIFY}${de})", is_total)
-        # 遅延: (調査予定日<基準日 AND 調査完了日空) OR (対応予定日<基準日 AND 対応日空)
+
+        # --- 予定超過 (col 3-7) ---
+        # 調査: 調査予定日<基準日 AND 調査完了日空
         _write_data_cell(current_row, 3,
-            f'=COUNTIFS(\'{sn}\'!{DD_COL_INVESTIGATE_PLAN}${ds}:{DD_COL_INVESTIGATE_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_INVESTIGATE_DONE}${ds}:{DD_COL_INVESTIGATE_DONE}${de},"")'
-            f'+COUNTIFS(\'{sn}\'!{DD_COL_FIX_PLAN}${ds}:{DD_COL_FIX_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_FIX_DONE}${ds}:{DD_COL_FIX_DONE}${de},"")'
-            f'-COUNTIFS(\'{sn}\'!{DD_COL_INVESTIGATE_PLAN}${ds}:{DD_COL_INVESTIGATE_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_INVESTIGATE_DONE}${ds}:{DD_COL_INVESTIGATE_DONE}${de},"",\'{sn}\'!{DD_COL_FIX_PLAN}${ds}:{DD_COL_FIX_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_FIX_DONE}${ds}:{DD_COL_FIX_DONE}${de},"")',
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_INVESTIGATE_PLAN}${ds}:{DD_COL_INVESTIGATE_PLAN}${de},"<"&{bd},\'{sn}\'!{DD_COL_INVESTIGATE_DONE}${ds}:{DD_COL_INVESTIGATE_DONE}${de},"")',
             is_total)
-        # 滞留(7日超): 発見日から7日経過 AND 検証日空
+        # 対応: 対応予定日<基準日 AND 対応日空
         _write_data_cell(current_row, 4,
-            f'=COUNTIFS(\'{sn}\'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day})-7,\'{sn}\'!{DD_COL_VERIFY}${ds}:{DD_COL_VERIFY}${de},"")',
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_FIX_PLAN}${ds}:{DD_COL_FIX_PLAN}${de},"<"&{bd},\'{sn}\'!{DD_COL_FIX_DONE}${ds}:{DD_COL_FIX_DONE}${de},"")',
             is_total)
-        # 調査予定超過
+        # 横展開: 横展開有 AND 横展開完了予定日<基準日 AND 横展開完了日空
         _write_data_cell(current_row, 5,
-            f'=COUNTIFS(\'{sn}\'!{DD_COL_INVESTIGATE_PLAN}${ds}:{DD_COL_INVESTIGATE_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_INVESTIGATE_DONE}${ds}:{DD_COL_INVESTIGATE_DONE}${de},"")',
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_LATERAL_EXISTS}${ds}:{DD_COL_LATERAL_EXISTS}${de},"有",\'{sn}\'!{DD_COL_LATERAL_PLAN}${ds}:{DD_COL_LATERAL_PLAN}${de},"<"&{bd},\'{sn}\'!{DD_COL_LATERAL_DONE}${ds}:{DD_COL_LATERAL_DONE}${de},"")',
             is_total)
-        # 対応予定超過
+        # 検証: リリース予定日<基準日 AND 検証日空
         _write_data_cell(current_row, 6,
-            f'=COUNTIFS(\'{sn}\'!{DD_COL_FIX_PLAN}${ds}:{DD_COL_FIX_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_FIX_DONE}${ds}:{DD_COL_FIX_DONE}${de},"")',
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_RELEASE_PLAN}${ds}:{DD_COL_RELEASE_PLAN}${de},"<"&{bd},\'{sn}\'!{DD_COL_VERIFY}${ds}:{DD_COL_VERIFY}${de},"")',
             is_total)
-        # 横展開/検証超過
+        # 合計
         _write_data_cell(current_row, 7,
-            f'=COUNTIFS(\'{sn}\'!{DD_COL_LATERAL_EXISTS}${ds}:{DD_COL_LATERAL_EXISTS}${de},"有",\'{sn}\'!{DD_COL_LATERAL_PLAN}${ds}:{DD_COL_LATERAL_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_LATERAL_DONE}${ds}:{DD_COL_LATERAL_DONE}${de},"")',
+            f'=SUM(C{current_row}:F{current_row})',
             is_total)
-        # 横展開未完了
+
+        # --- 滞留7日超 (col 8-12) ---
+        bd7 = f"{bd}-7"
+        # 調査: 調査予定日<基準日-7 AND 調査完了日空
         _write_data_cell(current_row, 8,
-            f'=COUNTIFS(\'{sn}\'!{DD_COL_LATERAL_EXISTS}${ds}:{DD_COL_LATERAL_EXISTS}${de},"有",\'{sn}\'!{DD_COL_LATERAL_DONE}${ds}:{DD_COL_LATERAL_DONE}${de},"")',
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_INVESTIGATE_PLAN}${ds}:{DD_COL_INVESTIGATE_PLAN}${de},"<"&{bd7},\'{sn}\'!{DD_COL_INVESTIGATE_DONE}${ds}:{DD_COL_INVESTIGATE_DONE}${de},"")',
+            is_total)
+        # 対応: 対応予定日<基準日-7 AND 対応日空
+        _write_data_cell(current_row, 9,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_FIX_PLAN}${ds}:{DD_COL_FIX_PLAN}${de},"<"&{bd7},\'{sn}\'!{DD_COL_FIX_DONE}${ds}:{DD_COL_FIX_DONE}${de},"")',
+            is_total)
+        # 横展開: 横展開有 AND 横展開完了予定日<基準日-7 AND 横展開完了日空
+        _write_data_cell(current_row, 10,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_LATERAL_EXISTS}${ds}:{DD_COL_LATERAL_EXISTS}${de},"有",\'{sn}\'!{DD_COL_LATERAL_PLAN}${ds}:{DD_COL_LATERAL_PLAN}${de},"<"&{bd7},\'{sn}\'!{DD_COL_LATERAL_DONE}${ds}:{DD_COL_LATERAL_DONE}${de},"")',
+            is_total)
+        # 検証: リリース予定日<基準日-7 AND 検証日空
+        _write_data_cell(current_row, 11,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_RELEASE_PLAN}${ds}:{DD_COL_RELEASE_PLAN}${de},"<"&{bd7},\'{sn}\'!{DD_COL_VERIFY}${ds}:{DD_COL_VERIFY}${de},"")',
+            is_total)
+        # 合計
+        _write_data_cell(current_row, 12,
+            f'=SUM(H{current_row}:K{current_row})',
             is_total)
         current_row += 1
 
