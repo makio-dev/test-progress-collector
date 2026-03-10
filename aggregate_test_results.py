@@ -1012,6 +1012,24 @@ def is_weekend(date_obj):
     return date_obj.weekday() >= 5  # 5=土曜, 6=日曜
 
 
+def get_previous_business_day(base_date, holidays=None):
+    """base_dateの前営業日を返す（土日・祝日を除く）"""
+    if holidays is None:
+        holidays = {}
+    holiday_dates = set()
+    for key in holidays.keys():
+        try:
+            holiday_dates.add(datetime.strptime(key, "%Y/%m/%d").date())
+        except:
+            pass
+    candidate = base_date - timedelta(days=1)
+    while True:
+        d = candidate.date() if isinstance(candidate, datetime) else candidate
+        if not is_weekend(candidate) and d not in holiday_dates:
+            return candidate
+        candidate -= timedelta(days=1)
+
+
 def load_cache(cache_file):
     """キャッシュファイルを読み込む"""
     if cache_file and os.path.exists(cache_file):
@@ -1228,6 +1246,33 @@ DEFECT_COL_CUM_DETECTED = 6 # F列
 DEFECT_COL_CUM_RESOLVED = 7 # G列
 DEFECT_COL_CUM_UNRESOLVED = 8  # H列
 
+DEFECT_DETAIL_SHEET_NAME = "テスト欠陥一覧"
+DEFECT_DETAIL_DATA_START_ROW = 9
+
+# 列番号 (1-based)
+DDET_COL_ID = 1              # A: 欠陥ID
+DDET_COL_STATUS = 2          # B: 対応状況
+DDET_COL_TITLE = 3           # C: 件名
+DDET_COL_DETECTED_DATE = 4   # D: 発見日
+DDET_COL_FUNCTION = 7        # G: 業務機能分類
+DDET_COL_URGENCY = 13        # M: 緊急度
+DDET_COL_IMPACT = 14         # N: 影響度
+DDET_COL_INVESTIGATE_PLAN = 15  # O: 調査予定日
+DDET_COL_INVESTIGATE_DONE = 16  # P: 調査完了日
+DDET_COL_ROOT_CAUSE = 20     # T: 欠陥原因（深層）
+DDET_COL_EMBEDDED_PHASE = 21 # U: 欠陥埋込フェーズ
+DDET_COL_DETECT_PHASE = 22   # V: 検出すべきフェーズ
+DDET_COL_FIX_PLAN = 30       # AD: 対応予定日
+DDET_COL_FIX_DONE = 31       # AE: 対応日
+DDET_COL_LATERAL_EXISTS = 33 # AG: 横展開うむ
+DDET_COL_LATERAL_TARGET = 34 # AH: 横展開先
+DDET_COL_LATERAL_PLAN = 35   # AI: 横展開完了予定日
+DDET_COL_LATERAL_DONE = 36   # AJ: 横展開完了日
+DDET_COL_RELEASE_PLAN = 37   # AK: リリース予定日
+DDET_COL_RELEASE_DONE = 38   # AL: リリース日
+DDET_COL_VERIFY_DATE = 39    # AM: 検証日
+DDET_COL_COUNT_FLAG = 42     # AP: 集計フラグ (1=欠陥, 0=非欠陥)
+
 
 def collect_defect_data(defect_files):
     """欠陥一覧ファイルからデータを収集
@@ -1307,11 +1352,88 @@ def collect_defect_data(defect_files):
     return defect_records
 
 
+def collect_defect_detail_data(defect_files):
+    """欠陥一覧ファイルの「テスト欠陥一覧」シートからレコードを収集
+
+    Args:
+        defect_files: チーム名をキー、ファイルパスを値とする辞書
+
+    Returns:
+        defect_detail_records: 欠陥詳細レコードのリスト
+    """
+    defect_detail_records = []
+
+    if not defect_files:
+        return defect_detail_records
+
+    for team_name, filepath in defect_files.items():
+        if not filepath or not os.path.exists(filepath):
+            print(f"  ⏭ 欠陥詳細({team_name}): ファイルなし")
+            continue
+
+        try:
+            wb = openpyxl.load_workbook(filepath, data_only=True)
+
+            if DEFECT_DETAIL_SHEET_NAME not in wb.sheetnames:
+                print(f"  ⚠ 欠陥詳細({team_name}): シート '{DEFECT_DETAIL_SHEET_NAME}' が見つかりません")
+                wb.close()
+                continue
+
+            ws = wb[DEFECT_DETAIL_SHEET_NAME]
+            record_count = 0
+
+            for row in range(DEFECT_DETAIL_DATA_START_ROW, ws.max_row + 1):
+                # AP列の集計フラグ確認
+                count_flag = ws.cell(row=row, column=DDET_COL_COUNT_FLAG).value
+                if count_flag != 1:
+                    continue
+
+                # 欠陥IDが空の行はスキップ
+                defect_id = ws.cell(row=row, column=DDET_COL_ID).value
+                if not defect_id:
+                    continue
+
+                record = {
+                    "チーム名": team_name,
+                    "欠陥ID": defect_id,
+                    "対応状況": ws.cell(row=row, column=DDET_COL_STATUS).value or "",
+                    "件名": ws.cell(row=row, column=DDET_COL_TITLE).value or "",
+                    "発見日": _to_date_obj(ws.cell(row=row, column=DDET_COL_DETECTED_DATE).value),
+                    "業務機能分類": ws.cell(row=row, column=DDET_COL_FUNCTION).value or "",
+                    "緊急度": ws.cell(row=row, column=DDET_COL_URGENCY).value or "",
+                    "影響度": ws.cell(row=row, column=DDET_COL_IMPACT).value or "",
+                    "調査予定日": _to_date_obj(ws.cell(row=row, column=DDET_COL_INVESTIGATE_PLAN).value),
+                    "調査完了日": _to_date_obj(ws.cell(row=row, column=DDET_COL_INVESTIGATE_DONE).value),
+                    "欠陥原因": ws.cell(row=row, column=DDET_COL_ROOT_CAUSE).value or "",
+                    "欠陥埋込フェーズ": ws.cell(row=row, column=DDET_COL_EMBEDDED_PHASE).value or "",
+                    "検出すべきフェーズ": ws.cell(row=row, column=DDET_COL_DETECT_PHASE).value or "",
+                    "対応予定日": _to_date_obj(ws.cell(row=row, column=DDET_COL_FIX_PLAN).value),
+                    "対応日": _to_date_obj(ws.cell(row=row, column=DDET_COL_FIX_DONE).value),
+                    "横展開有無": ws.cell(row=row, column=DDET_COL_LATERAL_EXISTS).value or "",
+                    "横展開先": ws.cell(row=row, column=DDET_COL_LATERAL_TARGET).value or "",
+                    "横展開完了予定日": _to_date_obj(ws.cell(row=row, column=DDET_COL_LATERAL_PLAN).value),
+                    "横展開完了日": _to_date_obj(ws.cell(row=row, column=DDET_COL_LATERAL_DONE).value),
+                    "リリース予定日": _to_date_obj(ws.cell(row=row, column=DDET_COL_RELEASE_PLAN).value),
+                    "リリース日": _to_date_obj(ws.cell(row=row, column=DDET_COL_RELEASE_DONE).value),
+                    "検証日": _to_date_obj(ws.cell(row=row, column=DDET_COL_VERIFY_DATE).value),
+                }
+                defect_detail_records.append(record)
+                record_count += 1
+
+            wb.close()
+            print(f"  ✅ 欠陥詳細({team_name}): {record_count}件")
+
+        except Exception as e:
+            print(f"  ⚠ 欠陥詳細({team_name}): エラー - {e}")
+
+    return defect_detail_records
+
+
 # ===================================================================
 #  Excel出力
 # ===================================================================
 
-def write_excel(records, output_path, holidays=None, week_from=None, week_to=None, defect_records=None):
+def write_excel(records, output_path, holidays=None, week_from=None, week_to=None, defect_records=None, defect_detail_records=None):
     """ダッシュボード＋明細シート＋進捗サマリー（チーム別）＋祝日マスタをExcelに出力
 
     Args:
@@ -1321,9 +1443,12 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
         week_from: 週集計の開始日（YYYY/MM/DD形式、省略可）
         week_to: 週集計の終了日（YYYY/MM/DD形式、省略可）
         defect_records: 欠陥レコードのリスト（省略可）
+        defect_detail_records: 欠陥詳細レコードのリスト（省略可）
     """
     if defect_records is None:
         defect_records = []
+    if defect_detail_records is None:
+        defect_detail_records = []
 
     if holidays is None:
         holidays = DEFAULT_HOLIDAYS
@@ -1385,9 +1510,34 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
     ws_dashboard = wb.create_sheet("ダッシュボード")
     _write_dashboard_sheet(ws_dashboard, summary_info, teams_in_data, wb, week_from, week_to, defect_summary_info)
 
+    # --- 欠陥詳細データシート（欠陥詳細データがある場合のみ）---
+    defect_detail_info = {}
+    if defect_detail_records:
+        # チーム別に欠陥詳細レコードを分類
+        defect_detail_by_team = defaultdict(list)
+        for rec in defect_detail_records:
+            defect_detail_by_team[rec["チーム名"]].append(rec)
+
+        # ALL
+        ws_dd_all = wb.create_sheet("欠陥詳細_ALL")
+        defect_detail_info["ALL"] = _write_defect_detail_sheet(ws_dd_all, defect_detail_records, "ALL")
+
+        # チーム別
+        for team_name_dd in sorted(defect_detail_by_team.keys()):
+            sheet_name_dd = f"欠陥詳細_{team_name_dd}"
+            ws_dd_team = wb.create_sheet(sheet_name_dd)
+            defect_detail_info[team_name_dd] = _write_defect_detail_sheet(ws_dd_team, defect_detail_by_team[team_name_dd], team_name_dd)
+
+        # 欠陥ダッシュボード
+        ws_defect_db = wb.create_sheet("欠陥ダッシュボード")
+        _write_defect_dashboard_sheet(ws_defect_db, defect_detail_records, holidays, week_from, week_to, defect_detail_info)
+
     # シートの順序を調整
-    # 目標の順序: ダッシュボード, 要対応一覧, 進捗サマリー_ALL, チーム別進捗..., 欠陥サマリー_ALL, チーム別欠陥..., 明細, 祝日マスタ
-    sheet_order = ["ダッシュボード", "要対応一覧", "進捗サマリー_ALL"]
+    # 目標の順序: ダッシュボード, 欠陥ダッシュボード, 要対応一覧, 進捗サマリー_ALL, チーム別進捗..., 欠陥サマリー_ALL, チーム別欠陥..., 明細, 祝日マスタ
+    sheet_order = ["ダッシュボード"]
+    if "欠陥ダッシュボード" in wb.sheetnames:
+        sheet_order.append("欠陥ダッシュボード")
+    sheet_order.extend(["要対応一覧", "進捗サマリー_ALL"])
     for team_name in teams_in_data:
         sheet_order.append(f"進捗サマリー_{team_name}")
     # 欠陥サマリーシートを追加
@@ -1397,6 +1547,13 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
             defect_sheet = f"欠陥サマリー_{team_name}"
             if defect_sheet in wb.sheetnames:
                 sheet_order.append(defect_sheet)
+    # 欠陥詳細シートを追加
+    if "欠陥詳細_ALL" in wb.sheetnames:
+        sheet_order.append("欠陥詳細_ALL")
+        for team_name in teams_in_data:
+            detail_sheet = f"欠陥詳細_{team_name}"
+            if detail_sheet in wb.sheetnames:
+                sheet_order.append(detail_sheet)
     sheet_order.extend(["明細", "祝日マスタ"])
 
     # シートを並び替え
@@ -1415,11 +1572,17 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
         ws = wb[sheet_name]
         if sheet_name == "ダッシュボード":
             ws.sheet_properties.tabColor = TAB_COLOR_DASHBOARD
+        elif sheet_name == "欠陥ダッシュボード":
+            ws.sheet_properties.tabColor = "BF360C"
         elif sheet_name == "要対応一覧":
             ws.sheet_properties.tabColor = TAB_COLOR_ALERT
         elif sheet_name == "進捗サマリー_ALL" or sheet_name == "欠陥サマリー_ALL":
             ws.sheet_properties.tabColor = TAB_COLOR_SUMMARY_ALL
         elif sheet_name.startswith("進捗サマリー_") or sheet_name.startswith("欠陥サマリー_"):
+            ws.sheet_properties.tabColor = TAB_COLOR_SUMMARY_TEAM
+        elif sheet_name == "欠陥詳細_ALL":
+            ws.sheet_properties.tabColor = TAB_COLOR_SUMMARY_ALL
+        elif sheet_name.startswith("欠陥詳細_"):
             ws.sheet_properties.tabColor = TAB_COLOR_SUMMARY_TEAM
         elif sheet_name in ["明細", "祝日マスタ"]:
             ws.sheet_properties.tabColor = TAB_COLOR_GRAY
@@ -1613,7 +1776,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     row += 1
     # チーム列
     ws.cell(row=row, column=1, value="")
-    ws.cell(row=row, column=1).fill = PatternFill(start_color=COMMON_HEADER_BG, end_color=COMMON_HEADER_BG, fill_type="solid")
+    ws.cell(row=row, column=1).fill = PatternFill(start_color=IMPL_HEADER_BG, end_color=IMPL_HEADER_BG, fill_type="solid")
     ws.cell(row=row, column=1).border = THIN_BORDER
 
     # 日次グループ（B-C列）
@@ -1905,7 +2068,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     row += 1
     # チーム列
     ws.cell(row=row, column=1, value="")
-    ws.cell(row=row, column=1).fill = PatternFill(start_color=COMMON_HEADER_BG, end_color=COMMON_HEADER_BG, fill_type="solid")
+    ws.cell(row=row, column=1).fill = PatternFill(start_color=VERIFY_HEADER_BG, end_color=VERIFY_HEADER_BG, fill_type="solid")
     ws.cell(row=row, column=1).border = THIN_BORDER
 
     # 日次グループ（B-C列）
@@ -2162,82 +2325,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     )
 
     # =================================================================
-    # セクション3: 欠陥状況（欠陥データがある場合のみ）
-    # =================================================================
-    if defect_summary_info:
-        row += 3
-        ws.merge_cells(f'A{row}:P{row}')
-        ws[f'A{row}'] = "■ 欠陥状況"
-        ws[f'A{row}'].font = Font(name="游ゴシック", size=12, bold=True, color="505050")
-        ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
-        ws[f'A{row}'].alignment = Alignment(horizontal="left", vertical="center")
-        ws.row_dimensions[row].height = 24
-
-        row += 1
-        # ヘッダー行
-        defect_headers = ["チーム", "週検出", "累積検出", "累積対応", "累積未対応"]
-        for col, header in enumerate(defect_headers, 1):
-            cell = ws.cell(row=row, column=col, value=header)
-            cell.font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
-            cell.fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")  # 赤系
-            cell.alignment = Alignment(horizontal="center", vertical="center")
-            cell.border = THIN_BORDER
-
-        defect_header_row = row
-        row += 1
-
-        # データ行
-        for team_display in ordered_teams:
-            team_key = "ALL" if team_display == "全体" else team_display
-
-            # 全体行は色付け
-            is_total_row = (team_display == "全体")
-            row_fill = TOTAL_FILL if is_total_row else None
-
-            if team_key in defect_summary_info:
-                info = defect_summary_info[team_key]
-                sheet_name = f"欠陥サマリー_{team_key}"
-
-                # 週検出 = SUMIFSで週範囲内の検出欠陥数合計
-                week_detected_formula = f"=IF(OR({WEEK_FROM_CELL}=\"\",{WEEK_TO_CELL}=\"\"),\"-\",SUMIFS('{sheet_name}'!C{info['data_start_row']}:C{info['data_end_row']},'{sheet_name}'!A{info['data_start_row']}:A{info['data_end_row']},\">=\"&{WEEK_FROM_CELL},'{sheet_name}'!A{info['data_start_row']}:A{info['data_end_row']},\"<=\"&{WEEK_TO_CELL}))"
-
-                ws.cell(row=row, column=1, value=team_display).border = THIN_BORDER
-                ws.cell(row=row, column=2, value=week_detected_formula).border = THIN_BORDER
-                ws.cell(row=row, column=3, value=info["total_detected"]).border = THIN_BORDER
-                ws.cell(row=row, column=4, value=info["total_resolved"]).border = THIN_BORDER
-                ws.cell(row=row, column=5, value=info["total_unresolved"]).border = THIN_BORDER
-
-                for col in range(1, 6):
-                    cell = ws.cell(row=row, column=col)
-                    cell.alignment = Alignment(horizontal="center", vertical="center")
-                    if row_fill:
-                        cell.fill = row_fill
-                    if col >= 2:
-                        cell.number_format = "#,##0"
-
-                # 未対応が0より大きい場合は赤色（全体行以外）
-                if info["total_unresolved"] > 0 and not is_total_row:
-                    ws.cell(row=row, column=5).fill = DANGER_FILL
-                    ws.cell(row=row, column=5).font = DANGER_FONT
-
-            else:
-                # データなし
-                ws.cell(row=row, column=1, value=team_display).border = THIN_BORDER
-                if row_fill:
-                    ws.cell(row=row, column=1).fill = row_fill
-                for col in range(2, 6):
-                    cell = ws.cell(row=row, column=col)
-                    cell.value = "(未設定)"
-                    cell.border = THIN_BORDER
-                    cell.alignment = Alignment(horizontal="center", vertical="center")
-                    cell.font = Font(color="808080")
-                    if row_fill:
-                        cell.fill = row_fill
-
-            row += 1
-
-    # =================================================================
-    # セクション4: 進捗推移チャート
+    # セクション3: 進捗推移チャート
     # =================================================================
     from openpyxl.chart.text import RichText
     from openpyxl.drawing.text import Paragraph, ParagraphProperties, CharacterProperties, Font as DrawingFont
@@ -2276,7 +2364,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     IMPL_CHART_LEFT_PT = 0       # 実施チャート左端
     VERIFY_CHART_LEFT_PT = 388   # 検証チャート左端（380 + 8pt gap）
     # 欠陥セクションの有無でチャート開始位置を調整
-    CHART_TOP_START_PT = 640 if defect_summary_info else 500  # 欠陥あり:32行目下、なし:26行目下
+    CHART_TOP_START_PT = 500
     CHART_VERTICAL_GAP_PT = 328  # チャート縦間隔（320 + 8pt gap）
 
     # PlotAreaレイアウト比率
@@ -2688,14 +2776,23 @@ def _write_holiday_sheet(ws, holidays):
         sorted_holidays = sorted(holidays.items(), key=lambda x: x[0])
         for i, (date_str, name) in enumerate(sorted_holidays):
             row = i + 5
-            ws.cell(row=row, column=1, value=date_str).border = THIN_BORDER
+            # 日付を文字列からdatetimeに変換（WORKDAY関数で参照できるように）
+            date_val = _to_date_obj(date_str)
+            cell = ws.cell(row=row, column=1, value=date_val if date_val else date_str)
+            cell.border = THIN_BORDER
+            if date_val:
+                cell.number_format = "YYYY/MM/DD"
             ws.cell(row=row, column=2, value=name).border = THIN_BORDER
             ws.cell(row=row, column=3, value="").border = THIN_BORDER
     else:
         # リスト形式: [日付, ...]（後方互換性）
         for i, holiday in enumerate(holidays):
             row = i + 5
-            ws.cell(row=row, column=1, value=holiday).border = THIN_BORDER
+            date_val = _to_date_obj(holiday)
+            cell = ws.cell(row=row, column=1, value=date_val if date_val else holiday)
+            cell.border = THIN_BORDER
+            if date_val:
+                cell.number_format = "YYYY/MM/DD"
             ws.cell(row=row, column=2, value="").border = THIN_BORDER
             ws.cell(row=row, column=3, value="").border = THIN_BORDER
 
@@ -3259,6 +3356,772 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
     }
 
 
+def _write_defect_detail_sheet(ws, records, team_name="ALL"):
+    """欠陥詳細データシートを作成
+
+    Args:
+        ws: ワークシート
+        records: 欠陥詳細レコードのリスト
+        team_name: チーム名
+
+    Returns:
+        dict with data_start_row, data_end_row for formula references
+    """
+    ws.sheet_view.showGridLines = False
+
+    # タイトル
+    ws.cell(row=1, column=1, value=f"欠陥詳細 - {team_name}")
+    ws.cell(row=1, column=1).font = Font(name="游ゴシック", size=14, bold=True)
+    ws.row_dimensions[1].height = 25
+
+    # ヘッダー (row 3)
+    header_row = 3
+    # Output ALL collected fields as columns (A-V, 22 columns)
+    headers = [
+        "チーム名",         # A (col 1)
+        "欠陥ID",           # B (col 2)
+        "対応状況",          # C (col 3)
+        "件名",             # D (col 4)
+        "発見日",           # E (col 5)
+        "業務機能分類",      # F (col 6)
+        "緊急度",           # G (col 7)
+        "影響度",           # H (col 8)
+        "調査予定日",        # I (col 9)
+        "調査完了日",        # J (col 10)
+        "欠陥原因",          # K (col 11)
+        "欠陥埋込フェーズ",   # L (col 12)
+        "検出すべきフェーズ",  # M (col 13)
+        "対応予定日",        # N (col 14)
+        "対応日",           # O (col 15)
+        "横展開有無",        # P (col 16)
+        "横展開先",          # Q (col 17)
+        "横展開完了予定日",   # R (col 18)
+        "横展開完了日",      # S (col 19)
+        "リリース予定日",     # T (col 20)
+        "リリース日",        # U (col 21)
+        "検証日",           # V (col 22)
+    ]
+
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+
+    # Data rows (row 4+)
+    data_start_row = header_row + 1
+    field_keys = [
+        "チーム名", "欠陥ID", "対応状況", "件名", "発見日", "業務機能分類",
+        "緊急度", "影響度", "調査予定日", "調査完了日", "欠陥原因",
+        "欠陥埋込フェーズ", "検出すべきフェーズ", "対応予定日", "対応日",
+        "横展開有無", "横展開先", "横展開完了予定日", "横展開完了日",
+        "リリース予定日", "リリース日", "検証日",
+    ]
+    # Date columns (0-based index in field_keys): 4,8,9,13,14,17,18,19,20,21
+    date_field_indices = {4, 8, 9, 13, 14, 17, 18, 19, 20, 21}
+
+    for i, rec in enumerate(records):
+        row = data_start_row + i
+        for col_idx, key in enumerate(field_keys):
+            val = rec.get(key, "")
+            cell = ws.cell(row=row, column=col_idx + 1, value=val)
+            cell.font = DATA_FONT
+            cell.border = THIN_BORDER
+            if col_idx in date_field_indices:
+                cell.alignment = DATA_ALIGN_CENTER
+                if val:
+                    cell.number_format = "YYYY/MM/DD"
+            elif col_idx <= 2 or col_idx in (5, 6, 7, 10, 11, 12, 15):
+                cell.alignment = DATA_ALIGN_CENTER
+            else:
+                cell.alignment = DATA_ALIGN_LEFT
+
+    data_end_row = data_start_row + len(records) - 1 if records else data_start_row
+
+    # Column widths
+    col_widths = {
+        'A': 12, 'B': 16, 'C': 10, 'D': 30, 'E': 12, 'F': 16,
+        'G': 8, 'H': 8, 'I': 12, 'J': 12, 'K': 16, 'L': 16,
+        'M': 16, 'N': 12, 'O': 12, 'P': 10, 'Q': 16, 'R': 14,
+        'S': 14, 'T': 14, 'U': 12, 'V': 12,
+    }
+    for col_letter, width in col_widths.items():
+        ws.column_dimensions[col_letter].width = width
+
+    return {
+        "data_start_row": data_start_row,
+        "data_end_row": data_end_row,
+        "header_row": header_row,
+    }
+
+
+def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week_from=None, week_to=None, defect_detail_info=None):
+    """欠陥ダッシュボードシートを作成
+
+    5つのセクション:
+    1. 欠陥サマリー（チーム別＋全体）
+    2. チーム/対応状況別欠陥数
+    3. チーム別緊急度
+    4. 業務機能分類（円グラフ付き）
+    5. チーム別欠陥原因（深層）
+
+    データは欠陥詳細シートをCOUNTIFS等の数式で参照。
+    """
+    from openpyxl.chart import PieChart, Reference
+    from openpyxl.chart.label import DataLabelList
+    from openpyxl.drawing.spreadsheet_drawing import AbsoluteAnchor
+    from openpyxl.drawing.xdr import XDRPoint2D, XDRPositiveSize2D
+
+    if holidays is None:
+        holidays = DEFAULT_HOLIDAYS
+    if defect_detail_info is None:
+        defect_detail_info = {}
+
+    PT_TO_EMU = 12700
+    SECTION_MERGE_END_COL = 9  # 全セクションヘッダーはI列まで
+
+    base_date = datetime.now()
+    prev_biz_day = get_previous_business_day(base_date, holidays)
+
+    # 週範囲
+    if week_from:
+        try:
+            wf = datetime.strptime(week_from, "%Y/%m/%d") if isinstance(week_from, str) else week_from
+        except:
+            wf = base_date - timedelta(days=base_date.weekday())
+    else:
+        wf = base_date - timedelta(days=base_date.weekday())
+
+    if week_to:
+        try:
+            wt = datetime.strptime(week_to, "%Y/%m/%d") if isinstance(week_to, str) else week_to
+        except:
+            wt = wf + timedelta(days=4)
+    else:
+        wt = wf + timedelta(days=4)
+
+    ws.sheet_view.showGridLines = False
+
+    # チーム別に分類
+    team_records = defaultdict(list)
+    for rec in defect_detail_records:
+        team_records[rec["チーム名"]].append(rec)
+    teams = sorted(team_records.keys())
+
+    # 欠陥詳細シートの参照情報を構築
+    # 欠陥詳細シートの列構成: A=チーム名, B=欠陥ID, C=対応状況, D=件名, E=発見日,
+    # F=業務機能分類, G=緊急度, H=影響度, I=調査予定日, J=調査完了日, K=欠陥原因,
+    # L=欠陥埋込フェーズ, M=検出すべきフェーズ, N=対応予定日, O=対応日,
+    # P=横展開有無, Q=横展開先, R=横展開完了予定日, S=横展開完了日,
+    # T=リリース予定日, U=リリース日, V=検証日
+    DD_COL_TEAM = "A"
+    DD_COL_STATUS = "C"
+    DD_COL_DETECTED = "E"
+    DD_COL_FUNCTION = "F"
+    DD_COL_URGENCY = "G"
+    DD_COL_INVESTIGATE_PLAN = "I"
+    DD_COL_INVESTIGATE_DONE = "J"
+    DD_COL_ROOT_CAUSE = "K"
+    DD_COL_FIX_PLAN = "N"
+    DD_COL_FIX_DONE = "O"
+    DD_COL_LATERAL_EXISTS = "P"
+    DD_COL_LATERAL_PLAN = "R"
+    DD_COL_LATERAL_DONE = "S"
+    DD_COL_VERIFY = "V"
+
+    # 配色
+    SECTION_HEADER_FONT = Font(name="游ゴシック", size=12, bold=True, color="8B0000")
+    TABLE_HEADER_FILL = PatternFill(start_color="C00000", end_color="C00000", fill_type="solid")
+
+    # カテゴリ行用の配色（ヘッダーと同色で統一）
+    CAT_FILL = TABLE_HEADER_FILL
+    CAT_FONT = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
+    CAT_ALIGN = Alignment(horizontal="center", vertical="center")
+
+    def _write_category_row(cat_row, header_row, categories, headers=None):
+        """カテゴリ行を書き込む。空ラベルのセルは縦にヘッダー行と結合。
+        categories: [(start_col, end_col, label), ...]
+        headers: ヘッダー名リスト（縦結合セルにヘッダーテキストを設定する用）"""
+        for start_col, end_col, label in categories:
+            if label:
+                # ラベルありの場合: カテゴリ行を横マージ
+                if start_col < end_col:
+                    ws.merge_cells(start_row=cat_row, start_column=start_col, end_row=cat_row, end_column=end_col)
+                cell = ws.cell(row=cat_row, column=start_col, value=label)
+                cell.font = CAT_FONT
+                cell.fill = CAT_FILL
+                cell.alignment = CAT_ALIGN
+                cell.border = THIN_BORDER
+                for c in range(start_col + 1, end_col + 1):
+                    ws.cell(row=cat_row, column=c).border = THIN_BORDER
+                    ws.cell(row=cat_row, column=c).fill = CAT_FILL
+            else:
+                # ラベルなしの場合: カテゴリ行とヘッダー行を縦結合
+                for c in range(start_col, end_col + 1):
+                    ws.merge_cells(start_row=cat_row, start_column=c, end_row=header_row, end_column=c)
+                    cell = ws.cell(row=cat_row, column=c)
+                    # ヘッダーテキストがあれば設定
+                    if headers and (c - 1) < len(headers):
+                        cell.value = headers[c - 1]
+                    cell.font = HEADER_FONT
+                    cell.fill = TABLE_HEADER_FILL
+                    cell.alignment = HEADER_ALIGN
+                    cell.border = THIN_BORDER
+
+    # カテゴリ内部の縦罫線を破線にする
+    HAIR_SIDE = Side(style="hair", color="000000")
+
+    def _apply_cat_internal_borders(cats, row_start, row_end):
+        """カテゴリグループ内部の縦罫線を最細破線に変更。
+        cats: [(start_col, end_col, label), ...] — labelありのグループが対象"""
+        for s, e, label in cats:
+            if not label or s >= e:
+                continue
+            # グループ内の内部列（start+1〜end）の左罫線を破線に
+            for r in range(row_start, row_end + 1):
+                for c in range(s + 1, e + 1):
+                    cell = ws.cell(row=r, column=c)
+                    b = cell.border
+                    cell.border = Border(
+                        left=HAIR_SIDE,
+                        right=b.right,
+                        top=b.top,
+                        bottom=b.bottom
+                    )
+
+    def _ref(team_key):
+        """チームに対応する欠陥詳細シート名と範囲を返す"""
+        if team_key == "全体":
+            sn = "欠陥詳細_ALL"
+            info = defect_detail_info.get("ALL", {})
+        else:
+            sn = f"欠陥詳細_{team_key}"
+            info = defect_detail_info.get(team_key, {})
+        ds = info.get("data_start_row", 4)
+        de = info.get("data_end_row", 4)
+        return sn, ds, de
+
+    def _countifs_formula(team_key, col, criteria):
+        """COUNTIFS数式を生成"""
+        sn, ds, de = _ref(team_key)
+        return f"=COUNTIFS('{sn}'!{col}${ds}:{col}${de},{criteria})"
+
+    def _countifs_multi_formula(team_key, conditions):
+        """複数条件のCOUNTIFS数式を生成。conditions: [(col, criteria), ...]"""
+        sn, ds, de = _ref(team_key)
+        parts = ",".join(f"'{sn}'!{col}${ds}:{col}${de},{crit}" for col, crit in conditions)
+        return f"=COUNTIFS({parts})"
+
+    def _write_section_header(row, title):
+        """セクションヘッダーを書き込む（I列まで統一マージ、背景なし）"""
+        ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=SECTION_MERGE_END_COL)
+        cell = ws.cell(row=row, column=1, value=title)
+        cell.font = SECTION_HEADER_FONT
+        cell.alignment = Alignment(horizontal="left", vertical="center")
+        ws.row_dimensions[row].height = 25
+
+    def _write_data_cell(row, col, value, is_total=False):
+        """データセルを書き込む"""
+        cell = ws.cell(row=row, column=col, value=value)
+        if is_total:
+            cell.font = Font(name="游ゴシック", size=10, bold=True)
+            cell.fill = TOTAL_FILL
+        else:
+            cell.font = DATA_FONT
+        cell.alignment = DATA_ALIGN_CENTER
+        cell.border = THIN_BORDER
+        return cell
+
+    current_row = 1
+
+    # === タイトル ===
+    ws.cell(row=current_row, column=1, value="欠陥ダッシュボード")
+    ws.cell(row=current_row, column=1).font = Font(name="游ゴシック", size=18, bold=True, color="1B3A5C")
+    ws.row_dimensions[current_row].height = 30
+    current_row += 1
+
+    # 基準日表示
+    ws.cell(row=current_row, column=1, value=f"基準日: {base_date.strftime('%Y/%m/%d')}")
+    ws.cell(row=current_row, column=1).font = Font(name="游ゴシック", size=10, color="666666")
+    current_row += 2
+
+    # 表示チーム順序（全体 + チーム）— ヘッダー直後に合計行
+    display_teams = ["全体"] + teams
+
+    # =======================================
+    # セクション1: 欠陥サマリー
+    # =======================================
+    _write_section_header(current_row, "1. 欠陥サマリー")
+    current_row += 1
+
+    # カテゴリ行
+    # チーム(1) | 全般(2-4) | 予定超過(5-7) | 横展開(8)
+    summary_headers = ["チーム", "未完了", "遅延", "滞留(7日超)", "調査予定超過", "対応予定超過", "横展開/検証超過", "横展開未完了"]
+    s1_cats = [
+        (1, 1, ""),
+        (2, 4, "全般"),
+        (5, 7, "予定超過"),
+        (8, 8, "横展開"),
+    ]
+    _write_category_row(current_row, current_row + 1, s1_cats, headers=summary_headers)
+    s1_merged = {c for s, e, l in s1_cats if not l for c in range(s, e + 1)}
+    current_row += 1
+    for col, header in enumerate(summary_headers, 1):
+        if col not in s1_merged:
+            cell = ws.cell(row=current_row, column=col, value=header)
+            cell.font = HEADER_FONT
+            cell.fill = TABLE_HEADER_FILL
+            cell.alignment = HEADER_ALIGN
+            cell.border = THIN_BORDER
+    current_row += 1
+
+    summary_data_start = current_row
+    base_date_str = base_date.strftime("%Y/%m/%d")
+    stagnant_date_str = (base_date - timedelta(days=7)).strftime("%Y/%m/%d")
+
+    for team in display_teams:
+        is_total = (team == "全体")
+        sn, ds, de = _ref(team)
+
+        # 未完了: 検証日(V)が空
+        _write_data_cell(current_row, 1, team, is_total)
+        _write_data_cell(current_row, 2, f"=COUNTBLANK('{sn}'!{DD_COL_VERIFY}${ds}:{DD_COL_VERIFY}${de})", is_total)
+        # 遅延: (調査予定日<基準日 AND 調査完了日空) OR (対応予定日<基準日 AND 対応日空)
+        _write_data_cell(current_row, 3,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_INVESTIGATE_PLAN}${ds}:{DD_COL_INVESTIGATE_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_INVESTIGATE_DONE}${ds}:{DD_COL_INVESTIGATE_DONE}${de},"")'
+            f'+COUNTIFS(\'{sn}\'!{DD_COL_FIX_PLAN}${ds}:{DD_COL_FIX_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_FIX_DONE}${ds}:{DD_COL_FIX_DONE}${de},"")'
+            f'-COUNTIFS(\'{sn}\'!{DD_COL_INVESTIGATE_PLAN}${ds}:{DD_COL_INVESTIGATE_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_INVESTIGATE_DONE}${ds}:{DD_COL_INVESTIGATE_DONE}${de},"",\'{sn}\'!{DD_COL_FIX_PLAN}${ds}:{DD_COL_FIX_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_FIX_DONE}${ds}:{DD_COL_FIX_DONE}${de},"")',
+            is_total)
+        # 滞留(7日超): 発見日から7日経過 AND 検証日空
+        _write_data_cell(current_row, 4,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day})-7,\'{sn}\'!{DD_COL_VERIFY}${ds}:{DD_COL_VERIFY}${de},"")',
+            is_total)
+        # 調査予定超過
+        _write_data_cell(current_row, 5,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_INVESTIGATE_PLAN}${ds}:{DD_COL_INVESTIGATE_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_INVESTIGATE_DONE}${ds}:{DD_COL_INVESTIGATE_DONE}${de},"")',
+            is_total)
+        # 対応予定超過
+        _write_data_cell(current_row, 6,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_FIX_PLAN}${ds}:{DD_COL_FIX_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_FIX_DONE}${ds}:{DD_COL_FIX_DONE}${de},"")',
+            is_total)
+        # 横展開/検証超過
+        _write_data_cell(current_row, 7,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_LATERAL_EXISTS}${ds}:{DD_COL_LATERAL_EXISTS}${de},"有",\'{sn}\'!{DD_COL_LATERAL_PLAN}${ds}:{DD_COL_LATERAL_PLAN}${de},"<"&DATE({base_date.year},{base_date.month},{base_date.day}),\'{sn}\'!{DD_COL_LATERAL_DONE}${ds}:{DD_COL_LATERAL_DONE}${de},"")',
+            is_total)
+        # 横展開未完了
+        _write_data_cell(current_row, 8,
+            f'=COUNTIFS(\'{sn}\'!{DD_COL_LATERAL_EXISTS}${ds}:{DD_COL_LATERAL_EXISTS}${de},"有",\'{sn}\'!{DD_COL_LATERAL_DONE}${ds}:{DD_COL_LATERAL_DONE}${de},"")',
+            is_total)
+        current_row += 1
+
+    _apply_cat_internal_borders(s1_cats, summary_data_start - 1, current_row - 1)
+    current_row += 2
+
+    # =======================================
+    # セクション2: 対応状況別欠陥数
+    # =======================================
+    _write_section_header(current_row, "2. 対応状況別欠陥数")
+    current_row += 1
+
+    all_statuses = sorted(set(r["対応状況"] for r in defect_detail_records if r["対応状況"]))
+    status_headers = ["チーム"] + all_statuses + ["合計", "新規検出", "週検出", "累積検出"]
+
+    # カテゴリ行
+    # チーム(1) | 対応状況(2 ~ len+1) | 合計(len+2) | 検出状況(len+3 ~ len+5)
+    s_end = len(all_statuses) + 1
+    sum_col_s2 = s_end + 1
+    det_start = sum_col_s2 + 1
+    det_end = det_start + 2
+    s2_cats = [
+        (1, 1, ""),
+        (2, s_end, "対応状況"),
+        (sum_col_s2, sum_col_s2, ""),
+        (det_start, det_end, "検出状況"),
+    ]
+    _write_category_row(current_row, current_row + 1, s2_cats, headers=status_headers)
+    s2_merged = {c for s, e, l in s2_cats if not l for c in range(s, e + 1)}
+    current_row += 1
+
+    for col, header in enumerate(status_headers, 1):
+        if col in s2_merged:
+            continue
+        cell = ws.cell(row=current_row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = TABLE_HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+    s2_header_row = current_row
+    current_row += 1
+
+    s2_data_start = current_row
+    for team in display_teams:
+        is_total = (team == "全体")
+        sn, ds, de = _ref(team)
+
+        _write_data_cell(current_row, 1, team, is_total)
+
+        # 対応状況別カウント（COUNTIFS数式）
+        for si, status in enumerate(all_statuses):
+            formula = f'=COUNTIFS(\'{sn}\'!{DD_COL_STATUS}${ds}:{DD_COL_STATUS}${de},"{status}")'
+            _write_data_cell(current_row, si + 2, formula, is_total)
+
+        # 合計列（対応状況列のSUM）
+        sum_col = len(all_statuses) + 2
+        first_col_letter = get_column_letter(2)
+        last_col_letter = get_column_letter(sum_col - 1)
+        _write_data_cell(current_row, sum_col,
+            f'=SUM({first_col_letter}{current_row}:{last_col_letter}{current_row})', is_total)
+
+        base_col = sum_col + 1
+        # 新規検出: ダッシュボードの基準日($B$2)の前営業日〜基準日（祝日マスタ参照）
+        _write_data_cell(current_row, base_col,
+            f"=COUNTIFS('{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\">=\"&WORKDAY('ダッシュボード'!$B$2,-1,'祝日マスタ'!$A$5:$A$500),'{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\"<=\"&'ダッシュボード'!$B$2)",
+            is_total)
+        # 週検出: ダッシュボードの週範囲($G$2〜$I$2)を参照
+        _write_data_cell(current_row, base_col + 1,
+            f"=COUNTIFS('{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\">=\"&'ダッシュボード'!$G$2,'{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\"<=\"&'ダッシュボード'!$I$2)",
+            is_total)
+        # 累積検出
+        _write_data_cell(current_row, base_col + 2,
+            f'=COUNTA(\'{sn}\'!{DD_COL_STATUS}${ds}:{DD_COL_STATUS}${de})',
+            is_total)
+        current_row += 1
+
+    _apply_cat_internal_borders(s2_cats, s2_data_start - 1, current_row - 1)
+    current_row += 2
+
+    # =======================================
+    # セクション3: 緊急度別欠陥数
+    # =======================================
+    _write_section_header(current_row, "3. 緊急度別欠陥数")
+    current_row += 1
+
+    all_urgencies = sorted(set(r["緊急度"] for r in defect_detail_records if r["緊急度"]))
+    urgency_headers = ["チーム"] + all_urgencies + ["合計"]
+
+    # カテゴリ行
+    u_end = len(all_urgencies) + 1
+    u_sum = u_end + 1
+    s3_cats = [
+        (1, 1, ""),
+        (2, u_end, "緊急度"),
+        (u_sum, u_sum, ""),
+    ]
+    _write_category_row(current_row, current_row + 1, s3_cats, headers=urgency_headers)
+    s3_merged = {c for s, e, l in s3_cats if not l for c in range(s, e + 1)}
+    current_row += 1
+
+    for col, header in enumerate(urgency_headers, 1):
+        if col in s3_merged:
+            continue
+        cell = ws.cell(row=current_row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = TABLE_HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+    current_row += 1
+
+    s3_data_start = current_row
+    for team in display_teams:
+        is_total = (team == "全体")
+        sn, ds, de = _ref(team)
+        _write_data_cell(current_row, 1, team, is_total)
+        for ui, urg in enumerate(all_urgencies):
+            formula = f'=COUNTIFS(\'{sn}\'!{DD_COL_URGENCY}${ds}:{DD_COL_URGENCY}${de},"{urg}")'
+            _write_data_cell(current_row, ui + 2, formula, is_total)
+        # 合計列
+        sum_col = len(all_urgencies) + 2
+        first_cl = get_column_letter(2)
+        last_cl = get_column_letter(sum_col - 1)
+        _write_data_cell(current_row, sum_col,
+            f'=SUM({first_cl}{current_row}:{last_cl}{current_row})', is_total)
+        current_row += 1
+
+    _apply_cat_internal_borders(s3_cats, s3_data_start - 1, current_row - 1)
+    current_row += 2
+
+    # =======================================
+    # セクション4: 業務機能分類（転置テーブル＋円グラフ）
+    # =======================================
+    _write_section_header(current_row, "4. 業務機能分類")
+    current_row += 1
+
+    # 全チーム共通のカテゴリを収集
+    all_functions = sorted(set(r["業務機能分類"] for r in defect_detail_records if r["業務機能分類"]))
+
+    # 転置: 行=カテゴリ、列=チーム
+    # ヘッダー: 業務機能分類 | 全体 | チーム1 | チーム2 | ...
+    func_col_teams = ["全体"] + teams
+    func_headers = ["業務機能分類"] + func_col_teams
+
+    # カテゴリ行
+    s4_cats = [
+        (1, 1, ""),
+        (2, len(func_col_teams) + 1, "チーム別件数"),
+    ]
+    _write_category_row(current_row, current_row + 1, s4_cats, headers=func_headers)
+    s4_merged = {c for s, e, l in s4_cats if not l for c in range(s, e + 1)}
+    current_row += 1
+
+    for col, header in enumerate(func_headers, 1):
+        if col in s4_merged:
+            continue
+        cell = ws.cell(row=current_row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = TABLE_HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+    func_header_row = current_row
+    current_row += 1
+
+    func_table_data_start = current_row
+
+    for func_name in all_functions:
+        _write_data_cell(current_row, 1, func_name, False)
+        ws.cell(row=current_row, column=1).alignment = DATA_ALIGN_LEFT
+        for ci, team in enumerate(func_col_teams):
+            sn, ds, de = _ref(team)
+            formula = f'=COUNTIFS(\'{sn}\'!{DD_COL_FUNCTION}${ds}:{DD_COL_FUNCTION}${de},"{func_name}")'
+            is_total = (team == "全体")
+            _write_data_cell(current_row, ci + 2, formula, is_total)
+        current_row += 1
+
+    func_table_data_end = current_row - 1
+
+    # 合計行（各チーム列の縦合計）
+    _write_data_cell(current_row, 1, "合計", True)
+    ws.cell(row=current_row, column=1).alignment = DATA_ALIGN_LEFT
+    for ci in range(len(func_col_teams)):
+        col_idx = ci + 2
+        cl = get_column_letter(col_idx)
+        _write_data_cell(current_row, col_idx,
+            f'=SUM({cl}{func_table_data_start}:{cl}{func_table_data_end})', True)
+    current_row += 1
+
+    _apply_cat_internal_borders(s4_cats, func_table_data_start - 1, current_row - 1)
+
+    # 円グラフ: 1行目=全体(左揃え), 2行目=チーム1+チーム2, 3行目=チーム3+チーム4...
+    if all_functions:
+        from openpyxl.chart.layout import Layout, ManualLayout
+        from openpyxl.chart.text import RichText
+        from openpyxl.drawing.text import Paragraph, ParagraphProperties, CharacterProperties, Font as DrawingFont
+
+        PIE_W_PT = 550
+        PIE_H_PT = 500
+        PIE_GAP_H_PT = 40
+        PIE_GAP_V_PT = 50
+        PIE_W_CM = PIE_W_PT * 0.0352778
+        PIE_H_CM = PIE_H_PT * 0.0352778
+        PIE_STEP_V = PIE_H_PT + PIE_GAP_V_PT
+
+        # テーブル末尾から8セル分余白を空けてチャート配置
+        current_row += 8
+        chart_top_pt = current_row * 15 + 60
+
+        def _make_pie(title, data_col, data_start, data_end):
+            c = PieChart()
+            c.title = title
+            c.style = 10
+            c.width = PIE_W_CM
+            c.height = PIE_H_CM
+            c.legend = None
+            c.roundedCorners = False  # 大外の罫線を直角に
+            # タイトル設定後にフォントを上書き
+            c.title = title
+            cp = CharacterProperties(sz=1400, b=True)
+            cp.latin = DrawingFont(typeface="游ゴシック")
+            c.title.txPr = RichText(
+                p=[Paragraph(pPr=ParagraphProperties(defRPr=cp), endParaRPr=cp)]
+            )
+            d = Reference(ws, min_col=data_col, min_row=data_start, max_row=data_end)
+            cats = Reference(ws, min_col=1, min_row=data_start, max_row=data_end)
+            c.add_data(d)
+            c.set_categories(cats)
+            c.dataLabels = DataLabelList()
+            c.dataLabels.showPercent = True
+            c.dataLabels.showCatName = True
+            c.dataLabels.showSerName = False
+            c.dataLabels.showVal = False
+            # 0%は非表示
+            c.dataLabels.numFmt = '0%;;'
+            c.dataLabels.numFmtLinked = False
+            # PlotArea: 十分な余白で円を中央に
+            c.layout = Layout(
+                manualLayout=ManualLayout(
+                    layoutTarget="inner",
+                    xMode="edge", yMode="edge",
+                    wMode="factor", hMode="factor",
+                    x=0.15, y=0.15, w=0.70, h=0.70
+                )
+            )
+            return c
+
+        def _put_pie(c, x_pt, y_pt):
+            c.anchor = AbsoluteAnchor(
+                pos=XDRPoint2D(x=int(x_pt * PT_TO_EMU), y=int(y_pt * PT_TO_EMU)),
+                ext=XDRPositiveSize2D(cx=int(PIE_W_PT * PT_TO_EMU), cy=int(PIE_H_PT * PT_TO_EMU))
+            )
+            ws.add_chart(c)
+
+        # 全体チャート（1行目、左揃え）
+        chart = _make_pie("全体 - 業務機能分類", 2, func_table_data_start, func_table_data_end)
+        _put_pie(chart, 10, chart_top_pt)
+        chart_row_count = 1
+
+        # 各チームチャート（2列ずつペア配置）
+        for ci, team in enumerate(teams):
+            data_col = ci + 3
+            chart = _make_pie(f"{team} - 業務機能分類", data_col, func_table_data_start, func_table_data_end)
+            col_pos = ci % 2
+            row_pos = 1 + (ci // 2)
+            x_pt = 10 + col_pos * (PIE_W_PT + PIE_GAP_H_PT)
+            y_pt = chart_top_pt + row_pos * PIE_STEP_V
+            _put_pie(chart, x_pt, y_pt)
+            chart_row_count = 1 + (ci // 2) + 1
+
+        # チャート分のスペース確保
+        chart_rows_needed = int(chart_row_count * PIE_STEP_V / 15) + 8
+        current_row += chart_rows_needed
+
+    # =======================================
+    # セクション5: 欠陥原因（深層）（転置テーブル＋円グラフ）
+    # =======================================
+    _write_section_header(current_row, "5. 欠陥原因（深層）")
+    current_row += 1
+
+    all_causes = sorted(set(r["欠陥原因"] for r in defect_detail_records if r["欠陥原因"]))
+
+    # 転置: 行=原因、列=チーム
+    cause_col_teams = ["全体"] + teams
+    cause_headers = ["欠陥原因"] + cause_col_teams
+
+    # カテゴリ行
+    s5_cats = [
+        (1, 1, ""),
+        (2, len(cause_col_teams) + 1, "チーム別件数"),
+    ]
+    _write_category_row(current_row, current_row + 1, s5_cats, headers=cause_headers)
+    s5_merged = {c for s, e, l in s5_cats if not l for c in range(s, e + 1)}
+    current_row += 1
+
+    for col, header in enumerate(cause_headers, 1):
+        if col in s5_merged:
+            continue
+        cell = ws.cell(row=current_row, column=col, value=header)
+        cell.font = HEADER_FONT
+        cell.fill = TABLE_HEADER_FILL
+        cell.alignment = HEADER_ALIGN
+        cell.border = THIN_BORDER
+    cause_header_row = current_row
+    current_row += 1
+
+    cause_table_data_start = current_row
+
+    for cause in all_causes:
+        _write_data_cell(current_row, 1, cause, False)
+        ws.cell(row=current_row, column=1).alignment = DATA_ALIGN_LEFT
+        for ci, team in enumerate(cause_col_teams):
+            sn, ds, de = _ref(team)
+            formula = f'=COUNTIFS(\'{sn}\'!{DD_COL_ROOT_CAUSE}${ds}:{DD_COL_ROOT_CAUSE}${de},"{cause}")'
+            is_total = (team == "全体")
+            _write_data_cell(current_row, ci + 2, formula, is_total)
+        current_row += 1
+
+    cause_table_data_end = current_row - 1
+
+    # 合計行（各チーム列の縦合計）
+    _write_data_cell(current_row, 1, "合計", True)
+    ws.cell(row=current_row, column=1).alignment = DATA_ALIGN_LEFT
+    for ci in range(len(cause_col_teams)):
+        col_idx = ci + 2
+        cl = get_column_letter(col_idx)
+        _write_data_cell(current_row, col_idx,
+            f'=SUM({cl}{cause_table_data_start}:{cl}{cause_table_data_end})', True)
+    current_row += 1
+
+    _apply_cat_internal_borders(s5_cats, cause_table_data_start - 1, current_row - 1)
+
+    # 円グラフ: 1行目=全体(左揃え), 2行目=チーム1+チーム2, 3行目=チーム3+チーム4...
+    if all_causes:
+        from openpyxl.chart.layout import Layout, ManualLayout
+        from openpyxl.chart.text import RichText
+        from openpyxl.drawing.text import Paragraph, ParagraphProperties, CharacterProperties, Font as DrawingFont
+
+        PIE_W_PT = 550
+        PIE_H_PT = 500
+        PIE_GAP_H_PT = 40
+        PIE_GAP_V_PT = 50
+        PIE_W_CM = PIE_W_PT * 0.0352778
+        PIE_H_CM = PIE_H_PT * 0.0352778
+        PIE_STEP_V = PIE_H_PT + PIE_GAP_V_PT
+
+        current_row += 8
+        chart_top_pt = current_row * 15 + 60
+
+        def _make_pie_s5(title, data_col, data_start, data_end):
+            c = PieChart()
+            c.title = title
+            c.style = 10
+            c.width = PIE_W_CM
+            c.height = PIE_H_CM
+            c.legend = None
+            c.roundedCorners = False
+            # タイトル設定後にフォントを上書き
+            c.title = title
+            cp = CharacterProperties(sz=1400, b=True)
+            cp.latin = DrawingFont(typeface="游ゴシック")
+            c.title.txPr = RichText(
+                p=[Paragraph(pPr=ParagraphProperties(defRPr=cp), endParaRPr=cp)]
+            )
+            d = Reference(ws, min_col=data_col, min_row=data_start, max_row=data_end)
+            cats = Reference(ws, min_col=1, min_row=data_start, max_row=data_end)
+            c.add_data(d)
+            c.set_categories(cats)
+            c.dataLabels = DataLabelList()
+            c.dataLabels.showPercent = True
+            c.dataLabels.showCatName = True
+            c.dataLabels.showSerName = False
+            c.dataLabels.showVal = False
+            c.dataLabels.numFmt = '0%;;'
+            c.dataLabels.numFmtLinked = False
+            c.layout = Layout(
+                manualLayout=ManualLayout(
+                    layoutTarget="inner",
+                    xMode="edge", yMode="edge",
+                    wMode="factor", hMode="factor",
+                    x=0.15, y=0.15, w=0.70, h=0.70
+                )
+            )
+            return c
+
+        def _put_pie_s5(c, x_pt, y_pt):
+            c.anchor = AbsoluteAnchor(
+                pos=XDRPoint2D(x=int(x_pt * PT_TO_EMU), y=int(y_pt * PT_TO_EMU)),
+                ext=XDRPositiveSize2D(cx=int(PIE_W_PT * PT_TO_EMU), cy=int(PIE_H_PT * PT_TO_EMU))
+            )
+            ws.add_chart(c)
+
+        # 全体チャート（1行目、左揃え）
+        chart = _make_pie_s5("全体 - 欠陥原因（深層）", 2, cause_table_data_start, cause_table_data_end)
+        _put_pie_s5(chart, 10, chart_top_pt)
+
+        # 各チームチャート（2列ずつペア配置）
+        for ci, team in enumerate(teams):
+            data_col = ci + 3
+            chart = _make_pie_s5(f"{team} - 欠陥原因（深層）", data_col, cause_table_data_start, cause_table_data_end)
+            col_pos = ci % 2
+            row_pos = 1 + (ci // 2)
+            x_pt = 10 + col_pos * (PIE_W_PT + PIE_GAP_H_PT)
+            y_pt = chart_top_pt + row_pos * PIE_STEP_V
+            _put_pie_s5(chart, x_pt, y_pt)
+
+    # === 列幅 ===
+    ws.column_dimensions['A'].width = 18
+    for col_idx in range(2, 20):
+        ws.column_dimensions[get_column_letter(col_idx)].width = 14
+
+
 def _write_defect_summary_sheet(ws, defect_records, team_name="ALL", holidays=None):
     """欠陥サマリーシートを作成
 
@@ -3563,6 +4426,12 @@ def main():
         print("\n  欠陥一覧ファイルの読み込み:")
         defect_records = collect_defect_data(defect_files)
 
+    # 欠陥詳細データの収集
+    defect_detail_records = []
+    if defect_files:
+        print("\n  欠陥詳細データの読み込み:")
+        defect_detail_records = collect_defect_detail_data(defect_files)
+
     if not records:
         msg = (
             "データが見つかりませんでした。\n"
@@ -3580,7 +4449,7 @@ def main():
         sys.exit(1)
 
     try:
-        write_excel(records, output_path, week_from=week_from, week_to=week_to, defect_records=defect_records)
+        write_excel(records, output_path, week_from=week_from, week_to=week_to, defect_records=defect_records, defect_detail_records=defect_detail_records)
     except PermissionError as e:
         error_msg = str(e)
         print(f"\n  ❌ エラー: {error_msg}")
