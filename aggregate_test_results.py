@@ -1610,7 +1610,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     構成:
         - 日次: 予定, 実績
         - 週次: 予定, 実績, 残数, 遅延（週範囲をセルに配置し数式で参照）
-        - 総数: 総数, 予定, 実績, 残数, 遅延, 予定消化率, 実績消化率, 乖離, 状態
+        - 総数: 総数, 予定, 実績, 残数, 遅延, 予定消化率, 実績消化率, 予実差, 状態
         - 欠陥: 週検出, 累積検出, 累積対応, 累積未対応
 
     Args:
@@ -1831,7 +1831,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         "予定", "実績", "残数", "遅延",
         # 総計
         "総数", "予定累計", "実績累計", "残数", "遅延",
-        "予定消化率", "実績消化率", "乖離", "状態"
+        "予定消化率", "実績消化率", "予実差", "状態"
     ]
     for col, header in enumerate(impl_headers, 1):
         # col==1はA列結合済みのためスキップ
@@ -1975,8 +1975,8 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # L: 遅延 = 予定累計 - 実績累計
-        cell = ws.cell(row=row, column=12, value=f"=I{row}-J{row}")
+        # L: 遅延 = MAX(0, 予定累計 - 実績累計)
+        cell = ws.cell(row=row, column=12, value=f"=MAX(0,I{row}-J{row})")
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(12)
         if row_fill:
@@ -2006,7 +2006,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # O: 乖離 = 実績消化率 - 予定消化率
+        # O: 予実差 = 実績消化率 - 予定消化率
         cell = ws.cell(row=row, column=15, value=f"=N{row}-M{row}")
         cell.number_format = "0.0%"
         cell.alignment = DATA_ALIGN_CENTER
@@ -2257,8 +2257,8 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # L: 遅延 = 予定累計 - 実績累計
-        cell = ws.cell(row=row, column=12, value=f"=I{row}-J{row}")
+        # L: 遅延 = MAX(0, 予定累計 - 実績累計)
+        cell = ws.cell(row=row, column=12, value=f"=MAX(0,I{row}-J{row})")
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(12)
         if row_fill:
@@ -2280,7 +2280,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # O: 乖離 = 実績消化率 - 予定消化率
+        # O: 予実差 = 実績消化率 - 予定消化率
         cell = ws.cell(row=row, column=15, value=f"=N{row}-M{row}")
         cell.number_format = "0.0%"
         cell.alignment = DATA_ALIGN_CENTER
@@ -2584,7 +2584,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws.column_dimensions['L'].width = 8    # 遅延
     ws.column_dimensions['M'].width = 10   # 予定消化率
     ws.column_dimensions['N'].width = 10   # 実績消化率
-    ws.column_dimensions['O'].width = 8    # 乖離
+    ws.column_dimensions['O'].width = 8    # 予実差
     ws.column_dimensions['P'].width = 8    # 状態
 
     # 印刷設定
@@ -2858,7 +2858,7 @@ def _write_detail_sheet(ws, records):
         # 検証者状況
         kensho_status = '=IF(J{row}<>"","完了",IF(I{row}="","－",IF(I{row}<=$L$2,"遅延","予定")))'.format(row=row)
         # 全体進捗
-        overall_status = '=IF(AND(H{row}="完了",K{row}="完了"),"完了",IF(OR(H{row}="遅延",K{row}="遅延"),"遅延","進行中"))'.format(row=row)
+        overall_status = '=IF(AND(H{row}="完了",K{row}="完了"),"完了",IF(OR(H{row}="遅延",K{row}="遅延"),"遅延",IF(OR(H{row}="完了",K{row}="完了"),"進行中","予定")))'.format(row=row)
 
         # 日付文字列を日付オブジェクトに変換（Excelでの比較用）
         jisshi_yotei_obj = _to_date_obj(rec["実施者_予定"])
