@@ -128,6 +128,17 @@ pip install -r requirements.txt
 python aggregate_test_results.py
 ```
 
+#### ウィザードの流れ
+
+```mermaid
+flowchart LR
+    S1["ステップ1/5\n対象フォルダ選択"] --> S2["ステップ2/5\n欠陥一覧ファイル選択\n（任意）"]
+    S2 --> S3["ステップ3/5\n週集計範囲設定"]
+    S3 --> S4["ステップ4/5\n出力設定"]
+    S4 --> S5["ステップ5/5\n確認・実行"]
+    S5 --> OUT["📊 Excelレポート生成"]
+```
+
 #### ステップ1/5: 対象フォルダ選択
 
 <!-- 画像: ウィザード_ステップ1_フォルダ選択画面.png -->
@@ -302,6 +313,19 @@ python aggregate_test_results.py .\input -o .\output\report.xlsx `
 | `-U-` | 運用 |
 | （上記以外） | その他 |
 
+```mermaid
+flowchart TD
+    F[ファイル名] --> C1{"-O- を含む?"}
+    C1 -- Yes --> T1[オンライン]
+    C1 -- No --> C2{"-B- を含む?"}
+    C2 -- Yes --> T2[バッチ]
+    C2 -- No --> C3{"-I- を含む?"}
+    C3 -- Yes --> T3[基盤]
+    C3 -- No --> C4{"-U- を含む?"}
+    C4 -- Yes --> T4[運用]
+    C4 -- No --> T5[その他]
+```
+
 **例:**
 - `ITB-O-001_ログイン機能.xlsx` → **オンライン**
 - `ITB-B-002_夜間バッチ.xlsx` → **バッチ**
@@ -409,6 +433,41 @@ input/
 
 ## 出力ファイルの構成
 
+```mermaid
+flowchart LR
+    subgraph 入力
+        TC["📁 テストケースファイル\n(.xlsx/.xlsm)"]
+        DF["📁 欠陥一覧ファイル\n（任意）"]
+    end
+
+    subgraph 処理
+        AGG["aggregate_test_results.py"]
+    end
+
+    subgraph 出力["📊 出力Excel（シート）"]
+        direction TB
+        SH1["ダッシュボード"]
+        SH2["欠陥ダッシュボード\n※欠陥詳細データ時のみ"]
+        SH3["要対応一覧"]
+        SH4["進捗サマリー_ALL\n進捗サマリー_○○（チーム別）"]
+        SH5["欠陥サマリー_ALL\n欠陥サマリー_○○\n※欠陥データ時のみ"]
+        SH6["欠陥詳細_ALL\n欠陥詳細_○○\n※欠陥詳細データ時のみ"]
+        SH7["明細"]
+        SH8["祝日マスタ"]
+    end
+
+    TC --> AGG
+    DF --> AGG
+    AGG --> SH1
+    AGG --> SH2
+    AGG --> SH3
+    AGG --> SH4
+    AGG --> SH5
+    AGG --> SH6
+    AGG --> SH7
+    AGG --> SH8
+```
+
 出力されるExcelファイルは以下のシート構成になります。
 
 | シート名 | 内容 | 備考 |
@@ -464,6 +523,17 @@ input/
 | 順調 | 実績消化率 ≥ 予定消化率 | 青 |
 | 遅延 | 実績消化率 < 予定消化率 | 赤 |
 | 予定 | 予定消化率 < 100% | グレー |
+
+```mermaid
+flowchart TD
+    START([判定開始]) --> C1{"実績消化率\n= 100%?"}
+    C1 -- Yes --> 完了["✅ 完了（緑）"]
+    C1 -- No --> C2{"実績消化率\n≥ 予定消化率?"}
+    C2 -- Yes --> 順調["🔵 順調（青）"]
+    C2 -- No --> C3{"予定消化率\n< 100%?"}
+    C3 -- Yes --> 予定["⬜ 予定（グレー）"]
+    C3 -- No --> 遅延["🔴 遅延（赤）"]
+```
 
 ---
 
