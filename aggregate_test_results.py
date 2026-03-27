@@ -1112,11 +1112,11 @@ def write_error_log(error_type, error_message, output_path=None):
         with open(log_path, 'w', encoding='utf-8') as f:
             f.write("\n".join(log_content))
 
-        print(f"  📝 エラーログを出力しました: {log_path}")
+        print(f"  [LOG] エラーログを出力しました: {log_path}")
         return log_path
 
     except Exception as log_error:
-        print(f"  ⚠ ログファイルの作成に失敗しました: {log_error}")
+        print(f"  [WARN] ログファイルの作成に失敗しました: {log_error}")
         return None
 
 
@@ -1163,7 +1163,7 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
                 records.extend(cached_records)
                 new_cache[filepath] = cached_entry
                 skipped_count += 1
-                print(f"  ⏭ {relative_path} (キャッシュ使用: {len(cached_records)}件)")
+                print(f"  [SKIP] {relative_path} (キャッシュ使用: {len(cached_records)}件)")
                 continue
             # 旧形式のキャッシュは無視して再処理
 
@@ -1175,10 +1175,10 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
             if not target_sheets:
                 # 対象シートがない場合はスキップ（関係ないExcelファイル）
                 wb.close()
-                print(f"  ⏭ {relative_path} (対象シートなし - スキップ)")
+                print(f"  [SKIP] {relative_path} (対象シートなし - スキップ)")
                 continue
 
-            print(f"  📄 {relative_path}")
+            print(f"  [FILE] {relative_path}")
             file_count += 1
 
             # ファイル名からチーム名を識別
@@ -1213,7 +1213,7 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
                     file_records.append(record)
                     case_count += 1
 
-                print(f"     ✅ {ws_name} ({case_count}件) [チーム: {team_name}]")
+                print(f"     [OK] {ws_name} ({case_count}件) [チーム: {team_name}]")
 
             wb.close()
 
@@ -1225,7 +1225,7 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
             records.extend(file_records)
 
         except Exception as e:
-            print(f"     ⚠ エラー: {e}")
+            print(f"     [WARN] エラー: {e}")
 
     # キャッシュを保存
     save_cache(cache_file, new_cache)
@@ -1304,7 +1304,7 @@ def collect_defect_data(defect_files):
 
     for team_name, filepath in defect_files.items():
         if not filepath or not os.path.exists(filepath):
-            print(f"  ⏭ 欠陥一覧({team_name}): ファイルなし")
+            print(f"  [SKIP] 欠陥一覧({team_name}): ファイルなし")
             continue
 
         try:
@@ -1312,7 +1312,7 @@ def collect_defect_data(defect_files):
 
             # 対象シートを探す
             if DEFECT_SHEET_NAME not in wb.sheetnames:
-                print(f"  ⚠ 欠陥一覧({team_name}): シート '{DEFECT_SHEET_NAME}' が見つかりません")
+                print(f"  [WARN] 欠陥一覧({team_name}): シート '{DEFECT_SHEET_NAME}' が見つかりません")
                 wb.close()
                 continue
 
@@ -1348,10 +1348,10 @@ def collect_defect_data(defect_files):
                 record_count += 1
 
             wb.close()
-            print(f"  ✅ 欠陥一覧({team_name}): {record_count}件")
+            print(f"  [OK] 欠陥一覧({team_name}): {record_count}件")
 
         except Exception as e:
-            print(f"  ⚠ 欠陥一覧({team_name}): エラー - {e}")
+            print(f"  [WARN] 欠陥一覧({team_name}): エラー - {e}")
 
     return defect_records
 
@@ -1372,14 +1372,14 @@ def collect_defect_detail_data(defect_files):
 
     for team_name, filepath in defect_files.items():
         if not filepath or not os.path.exists(filepath):
-            print(f"  ⏭ 欠陥詳細({team_name}): ファイルなし")
+            print(f"  [SKIP] 欠陥詳細({team_name}): ファイルなし")
             continue
 
         try:
             wb = openpyxl.load_workbook(filepath, data_only=True)
 
             if DEFECT_DETAIL_SHEET_NAME not in wb.sheetnames:
-                print(f"  ⚠ 欠陥詳細({team_name}): シート '{DEFECT_DETAIL_SHEET_NAME}' が見つかりません")
+                print(f"  [WARN] 欠陥詳細({team_name}): シート '{DEFECT_DETAIL_SHEET_NAME}' が見つかりません")
                 wb.close()
                 continue
 
@@ -1425,10 +1425,10 @@ def collect_defect_detail_data(defect_files):
                 record_count += 1
 
             wb.close()
-            print(f"  ✅ 欠陥詳細({team_name}): {record_count}件")
+            print(f"  [OK] 欠陥詳細({team_name}): {record_count}件")
 
         except Exception as e:
-            print(f"  ⚠ 欠陥詳細({team_name}): エラー - {e}")
+            print(f"  [WARN] 欠陥詳細({team_name}): エラー - {e}")
 
     return defect_detail_records
 
@@ -1602,7 +1602,7 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
             f"出力先: {output_path}\n"
             f"詳細: {e}"
         )
-    print(f"\n  ✅ 出力完了: {output_path}")
+    print(f"\n  [OK] 出力完了: {output_path}")
     print(f"     ダッシュボード: 本日のサマリー")
     print(f"     明細シート: {len(records)}件")
     print(f"     サマリーシート: ALL + {len(teams_in_data)}チーム")
@@ -4515,7 +4515,7 @@ def main():
             f"・シート名が「{SHEET_PREFIX}」で始まるか確認してください\n"
             "・C列にテストIDが入っているか確認してください"
         )
-        print(f"\n  ⚠ {msg}")
+        print(f"\n  [WARN] {msg}")
         if not cli_mode:
             root_err = tk.Tk()
             root_err.withdraw()
@@ -4528,7 +4528,7 @@ def main():
         write_excel(records, output_path, week_from=week_from, week_to=week_to, defect_records=defect_records, defect_detail_records=defect_detail_records)
     except PermissionError as e:
         error_msg = str(e)
-        print(f"\n  ❌ エラー: {error_msg}")
+        print(f"\n  [ERROR] エラー: {error_msg}")
         # エラーログを出力
         log_path = write_error_log("PermissionError", error_msg, output_path)
         if not cli_mode:
@@ -4547,7 +4547,7 @@ def main():
         sys.exit(1)
     except Exception as e:
         error_msg = str(e)
-        print(f"\n  ❌ 予期しないエラー: {error_msg}")
+        print(f"\n  [ERROR] 予期しないエラー: {error_msg}")
         # エラーログを出力
         log_path = write_error_log("Exception", error_msg, output_path)
         if not cli_mode:
