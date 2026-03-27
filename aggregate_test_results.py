@@ -2998,6 +2998,10 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
 
     min_date = min(all_dates)
     max_date = max(all_dates)
+    # 基準日（今日）が日付範囲に含まれるよう拡張
+    today = datetime.now().date()
+    if today > max_date:
+        max_date = today
     date_range = generate_date_range(min_date, max_date)
 
     # グリッド線を非表示
