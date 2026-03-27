@@ -44,7 +44,7 @@ import os
 import sys
 import argparse
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
@@ -984,14 +984,18 @@ def _to_date(val):
 
 
 def _to_date_obj(val):
-    """セル値をdatetimeオブジェクトに変換"""
+    """セル値をdate(時刻なし)オブジェクトに変換"""
     if val is None:
         return None
     if isinstance(val, datetime):
+        return val.date()
+    if hasattr(val, 'date') and callable(val.date):
+        return val.date()
+    if isinstance(val, date):
         return val
     if isinstance(val, str):
         try:
-            return datetime.strptime(val, "%Y/%m/%d")
+            return datetime.strptime(val, "%Y/%m/%d").date()
         except ValueError:
             return None
     return None
@@ -2598,7 +2602,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records):
     ws.sheet_view.showGridLines = False
 
     detail_last_row = detail_start_row + total_records - 1
-    today = datetime.now()
+    today = datetime.now().date()
     today_str = today.strftime("%Y/%m/%d")
 
     # 遅延レコードを抽出
@@ -3344,7 +3348,7 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
     today = datetime.now().date()
     ref_row = data_start_row  # デフォルト
     for i, date_obj in enumerate(date_range):
-        if date_obj.date() == today:
+        if (date_obj.date() if isinstance(date_obj, datetime) else date_obj) == today:
             ref_row = data_start_row + i
             break
 
