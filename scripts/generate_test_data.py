@@ -73,8 +73,8 @@ TEAMS = {
     "その他": {
         "pattern": "",  # パターンなし
         "files": [
-            {"name": "ITB_共通機能テスト", "sheets": ["ITB-001_帳票出力", "ITB-002_メール送信"], "cases_per_sheet": 8},
-            {"name": "ITB_外部連携テスト", "sheets": ["ITB-001_API連携"], "cases_per_sheet": 5},
+            {"name": "ITB-X-001_共通機能テスト", "sheets": ["ITB-001_帳票出力", "ITB-002_メール送信"], "cases_per_sheet": 8},
+            {"name": "ITB-X-002_外部連携テスト", "sheets": ["ITB-001_API連携"], "cases_per_sheet": 5},
         ],
         "subdir": "その他",
     },

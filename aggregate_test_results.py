@@ -1141,11 +1141,11 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
     if include_subfolders:
         for root, dirs, files in os.walk(folder_path):
             for filename in sorted(files):
-                if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$"):
+                if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$") and filename.upper().startswith("ITB-"):
                     excel_files.append(os.path.join(root, filename))
     else:
         for filename in sorted(os.listdir(folder_path)):
-            if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$"):
+            if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$") and filename.upper().startswith("ITB-"):
                 excel_files.append(os.path.join(folder_path, filename))
 
     for filepath in excel_files:
