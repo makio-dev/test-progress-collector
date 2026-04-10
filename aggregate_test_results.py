@@ -427,7 +427,7 @@ class WizardApp(tk.Tk):
 
         # 結果を格納する変数
         self.result = None
-        self.folder_path = tk.StringVar()
+        self.folder_paths = []  # 複数フォルダパスのリスト
         self.output_path = tk.StringVar()
         self.include_subfolders = tk.BooleanVar(value=True)
         self.update_mode = tk.StringVar(value="new")  # "new" or "update"
@@ -530,40 +530,64 @@ class WizardApp(tk.Tk):
         self.next_btn.config(text="実行" if step == 5 else "次へ >")
 
     def show_step1(self):
-        """ステップ1: 対象フォルダ選択"""
+        """ステップ1: 対象フォルダ選択（複数指定可）"""
         self.step_label.config(text="ステップ 1/5: 対象フォルダ選択")
 
         # 説明
         desc = ttk.Label(
             self.content_frame,
-            text="集計対象のExcelファイルが格納されているフォルダを選択してください。",
+            text="集計対象のExcelファイルが格納されているフォルダを選択してください。\n複数のフォルダを追加できます。",
             wraplength=480
         )
-        desc.pack(anchor=tk.W, pady=(0, 15))
+        desc.pack(anchor=tk.W, pady=(0, 10))
 
-        # フォルダ選択
-        folder_frame = ttk.Frame(self.content_frame)
-        folder_frame.pack(fill=tk.X, pady=10)
-
+        # フォルダ追加ボタン
         ttk.Button(
-            folder_frame,
-            text="📁 フォルダを選択...",
-            command=self.select_folder
-        ).pack(side=tk.LEFT)
+            self.content_frame,
+            text="+ フォルダを追加...",
+            command=self.add_folder
+        ).pack(anchor=tk.W, pady=(0, 5))
 
-        self.folder_display = ttk.Label(
-            folder_frame,
-            text=self.folder_path.get() or "(未選択)",
-            foreground="gray" if not self.folder_path.get() else "black"
+        # スクロール可能なフォルダリスト
+        list_frame = ttk.Frame(self.content_frame)
+        list_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 5))
+
+        self._folder_canvas = tk.Canvas(list_frame, height=220, highlightthickness=1, highlightbackground="gray")
+        scrollbar = ttk.Scrollbar(list_frame, orient=tk.VERTICAL, command=self._folder_canvas.yview)
+        self._folder_inner_frame = ttk.Frame(self._folder_canvas)
+
+        self._folder_inner_frame.bind(
+            "<Configure>",
+            lambda e: self._folder_canvas.configure(scrollregion=self._folder_canvas.bbox("all"))
         )
-        self.folder_display.pack(side=tk.LEFT, padx=(10, 0))
+
+        self._folder_canvas_window = self._folder_canvas.create_window((0, 0), window=self._folder_inner_frame, anchor="nw")
+        self._folder_canvas.configure(yscrollcommand=scrollbar.set)
+
+        # Canvasの幅に内部フレームを合わせる
+        def _on_canvas_configure(e):
+            self._folder_canvas.itemconfig(self._folder_canvas_window, width=e.width)
+        self._folder_canvas.bind("<Configure>", _on_canvas_configure)
+
+        # マウスホイールスクロール
+        def _on_mousewheel(e):
+            self._folder_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        self._folder_canvas.bind("<MouseWheel>", _on_mousewheel)  # Windows/macOS
+        self._folder_canvas.bind("<Button-4>", lambda e: self._folder_canvas.yview_scroll(-1, "units"))  # Linux
+        self._folder_canvas.bind("<Button-5>", lambda e: self._folder_canvas.yview_scroll(1, "units"))   # Linux
+
+        self._folder_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+        # リスト描画
+        self._refresh_folder_list()
 
         # サブフォルダオプション
         ttk.Checkbutton(
             self.content_frame,
             text="サブフォルダも含める（推奨）",
             variable=self.include_subfolders
-        ).pack(anchor=tk.W, pady=(20, 0))
+        ).pack(anchor=tk.W, pady=(10, 0))
 
         # 説明追加
         note = ttk.Label(
@@ -773,11 +797,18 @@ class WizardApp(tk.Tk):
         confirm_frame = ttk.LabelFrame(self.content_frame, text="設定内容", padding=10)
         confirm_frame.pack(fill=tk.X, pady=5)
 
-        # フォルダ
+        # フォルダ（複数対応）
         row1 = ttk.Frame(confirm_frame)
         row1.pack(fill=tk.X, pady=2)
         ttk.Label(row1, text="対象フォルダ:", width=15, anchor=tk.W).pack(side=tk.LEFT)
-        ttk.Label(row1, text=self.folder_path.get(), wraplength=350).pack(side=tk.LEFT)
+        if len(self.folder_paths) == 1:
+            ttk.Label(row1, text=self.folder_paths[0], wraplength=350).pack(side=tk.LEFT)
+        else:
+            ttk.Label(row1, text=f"{len(self.folder_paths)}件選択").pack(side=tk.LEFT)
+            for fp in self.folder_paths:
+                sub_row = ttk.Frame(confirm_frame)
+                sub_row.pack(fill=tk.X, pady=1, padx=(120, 0))
+                ttk.Label(sub_row, text=f"- {fp}", wraplength=350).pack(side=tk.LEFT)
 
         # サブフォルダ
         row2 = ttk.Frame(confirm_frame)
@@ -831,12 +862,44 @@ class WizardApp(tk.Tk):
         )
         note.pack(anchor=tk.W, pady=(10, 0))
 
-    def select_folder(self):
-        """フォルダ選択ダイアログ"""
+    def add_folder(self):
+        """フォルダ追加ダイアログ"""
         folder = filedialog.askdirectory(title="対象フォルダを選択")
-        if folder:
-            self.folder_path.set(folder)
-            self.folder_display.config(text=folder, foreground="black")
+        if folder and folder not in self.folder_paths:
+            self.folder_paths.append(folder)
+            self._refresh_folder_list()
+
+    def remove_folder(self, path):
+        """フォルダをリストから削除"""
+        if path in self.folder_paths:
+            self.folder_paths.remove(path)
+            self._refresh_folder_list()
+
+    def _refresh_folder_list(self):
+        """フォルダリストの表示を更新"""
+        if not hasattr(self, '_folder_inner_frame'):
+            return
+        for widget in self._folder_inner_frame.winfo_children():
+            widget.destroy()
+
+        if not self.folder_paths:
+            ttk.Label(
+                self._folder_inner_frame,
+                text="  (フォルダが未選択です)",
+                foreground="gray"
+            ).pack(anchor=tk.W, pady=5)
+        else:
+            for path in self.folder_paths:
+                row = ttk.Frame(self._folder_inner_frame)
+                row.pack(fill=tk.X, padx=5, pady=2)
+                ttk.Label(row, text=path, wraplength=430).pack(side=tk.LEFT, fill=tk.X, expand=True)
+                ttk.Button(
+                    row, text="削除", width=5,
+                    command=lambda p=path: self.remove_folder(p)
+                ).pack(side=tk.RIGHT, padx=(5, 0))
+
+        self._folder_inner_frame.update_idletasks()
+        self._folder_canvas.configure(scrollregion=self._folder_canvas.bbox("all"))
 
     def select_output(self):
         """出力ファイル選択ダイアログ"""
@@ -885,8 +948,8 @@ class WizardApp(tk.Tk):
     def go_next(self):
         """次のステップへ / 実行"""
         if self.current_step == 1:
-            if not self.folder_path.get():
-                messagebox.showwarning("入力エラー", "対象フォルダを選択してください。")
+            if not self.folder_paths:
+                messagebox.showwarning("入力エラー", "対象フォルダを1つ以上選択してください。")
                 return
             self.show_step(2)
 
@@ -939,7 +1002,7 @@ class WizardApp(tk.Tk):
                 defect_files_dict[team_name] = path
 
         self.result = {
-            "folder_path": self.folder_path.get(),
+            "folder_paths": list(self.folder_paths),
             "output_path": self.output_path.get(),
             "include_subfolders": self.include_subfolders.get(),
             "update_mode": self.update_mode.get(),
@@ -960,6 +1023,44 @@ def run_wizard():
     app = WizardApp()
     app.mainloop()
     return app.result
+
+
+class ProgressWindow:
+    """処理中の進捗を表示するウィンドウ"""
+
+    def __init__(self):
+        self.root = tk.Tk()
+        self.root.title("処理中...")
+        self.root.geometry("460x180")
+        self.root.resizable(False, False)
+        self.root.attributes("-topmost", True)
+        self.root.protocol("WM_DELETE_WINDOW", lambda: None)  # 閉じるボタン無効
+
+        frame = ttk.Frame(self.root, padding=20)
+        frame.pack(fill=tk.BOTH, expand=True)
+
+        self.status_label = ttk.Label(frame, text="処理を開始しています...", font=("", 11))
+        self.status_label.pack(pady=(10, 5))
+
+        self.detail_label = ttk.Label(frame, text="", foreground="gray")
+        self.detail_label.pack(pady=(0, 10))
+
+        self.progress = ttk.Progressbar(frame, mode="determinate", length=400)
+        self.progress.pack(pady=(5, 0))
+
+        self.root.update()
+
+    def update_status(self, message, detail="", progress_value=None):
+        """ステータスを更新"""
+        self.status_label.config(text=message)
+        self.detail_label.config(text=detail)
+        if progress_value is not None:
+            self.progress.config(mode="determinate", value=progress_value)
+        self.root.update()
+
+    def close(self):
+        """ウィンドウを閉じる"""
+        self.root.destroy()
 
 
 # ===================================================================
@@ -1124,8 +1225,15 @@ def write_error_log(error_type, error_message, output_path=None):
 #  データ収集
 # ===================================================================
 
-def collect_data(folder_path, cache_file=None, include_subfolders=True):
-    """フォルダ内の全Excelファイル → ITBシート → 全テストケースを収集"""
+def collect_data(folder_paths, cache_file=None, include_subfolders=True):
+    """フォルダ内の全Excelファイル → ITBシート → 全テストケースを収集
+
+    Args:
+        folder_paths: 対象フォルダパス（文字列またはリスト）
+    """
+    # 後方互換: 文字列の場合はリストに変換
+    if isinstance(folder_paths, str):
+        folder_paths = [folder_paths]
 
     records = []
     file_count = 0
@@ -1136,21 +1244,31 @@ def collect_data(folder_path, cache_file=None, include_subfolders=True):
     cached_data = load_cache(cache_file)
     new_cache = {}
 
-    # Excelファイルを収集
+    # Excelファイルを収集（タプル: filepath, source_folder）
     excel_files = []
-    if include_subfolders:
-        for root, dirs, files in os.walk(folder_path):
-            for filename in sorted(files):
+    seen_paths = set()
+    for folder_path in folder_paths:
+        if include_subfolders:
+            for root, dirs, files in os.walk(folder_path):
+                for filename in sorted(files):
+                    if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$") and filename.upper().startswith("ITB-"):
+                        fp = os.path.join(root, filename)
+                        abs_fp = os.path.abspath(fp)
+                        if abs_fp not in seen_paths:
+                            seen_paths.add(abs_fp)
+                            excel_files.append((fp, folder_path))
+        else:
+            for filename in sorted(os.listdir(folder_path)):
                 if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$") and filename.upper().startswith("ITB-"):
-                    excel_files.append(os.path.join(root, filename))
-    else:
-        for filename in sorted(os.listdir(folder_path)):
-            if (filename.endswith(".xlsx") or filename.endswith(".xlsm")) and not filename.startswith("~$") and filename.upper().startswith("ITB-"):
-                excel_files.append(os.path.join(folder_path, filename))
+                    fp = os.path.join(folder_path, filename)
+                    abs_fp = os.path.abspath(fp)
+                    if abs_fp not in seen_paths:
+                        seen_paths.add(abs_fp)
+                        excel_files.append((fp, folder_path))
 
-    for filepath in excel_files:
+    for filepath, source_folder in excel_files:
         filename = os.path.basename(filepath)
-        relative_path = os.path.relpath(filepath, folder_path)
+        relative_path = os.path.relpath(filepath, source_folder)
         file_mtime = os.path.getmtime(filepath)
 
         # 差分チェック: ファイルの更新日時が変わっていなければキャッシュを使用
@@ -4416,7 +4534,7 @@ def main():
 
     # --- CLI引数パース ---
     parser = argparse.ArgumentParser(description="テスト予定・実績 集計スクリプト")
-    parser.add_argument("folder", nargs="?", help="対象フォルダパス")
+    parser.add_argument("folder", nargs="*", help="対象フォルダパス（複数指定可）")
     parser.add_argument("-o", "--output", help="出力ファイルパス")
     parser.add_argument("-s", "--subfolders", action="store_true", default=True,
                         help="サブフォルダを含める（デフォルト: True）")
@@ -4436,9 +4554,9 @@ def main():
     week_to = None
 
     if args.folder:
-        # CLIモード
+        # CLIモード（フォルダが1つ以上指定されている）
         cli_mode = True
-        folder_path = args.folder
+        folder_paths = args.folder  # リスト
         if args.output:
             output_path = args.output
         else:
@@ -4478,7 +4596,7 @@ def main():
             print("\n  キャンセルされました。")
             sys.exit(0)
 
-        folder_path = config["folder_path"]
+        folder_paths = config["folder_paths"]
         output_path = config["output_path"]
         include_subfolders = config["include_subfolders"]
         week_from = config.get("week_from")
@@ -4489,26 +4607,44 @@ def main():
     cache_dir = os.path.dirname(output_path)
     cache_file = os.path.join(cache_dir, ".test_collector_cache.json")
 
-    print(f"\n  対象フォルダ: {folder_path}")
+    if len(folder_paths) == 1:
+        print(f"\n  対象フォルダ: {folder_paths[0]}")
+    else:
+        print(f"\n  対象フォルダ: {len(folder_paths)}件")
+        for fp in folder_paths:
+            print(f"    - {fp}")
     print(f"  サブフォルダ: {'含める' if include_subfolders else '含めない'}")
     print(f"  出力先:       {output_path}")
     print(f"  対象シート:   {SHEET_PREFIX}* で始まるシート\n")
 
-    records = collect_data(folder_path, cache_file, include_subfolders)
+    # GUIモードの場合、進捗ウィンドウを表示
+    progress_win = None
+    if not cli_mode:
+        progress_win = ProgressWindow()
+        folder_summary = folder_paths[0] if len(folder_paths) == 1 else f"{len(folder_paths)}フォルダ"
+        progress_win.update_status("Excelファイルを読み込み中...", f"対象: {folder_summary}", 10)
+
+    records = collect_data(folder_paths, cache_file, include_subfolders)
 
     # 欠陥データの収集
     defect_records = []
     if defect_files:
         print("\n  欠陥一覧ファイルの読み込み:")
+        if progress_win:
+            progress_win.update_status("欠陥一覧を読み込み中...", "", 40)
         defect_records = collect_defect_data(defect_files)
 
     # 欠陥詳細データの収集
     defect_detail_records = []
     if defect_files:
         print("\n  欠陥詳細データの読み込み:")
+        if progress_win:
+            progress_win.update_status("欠陥詳細データを読み込み中...", "", 55)
         defect_detail_records = collect_defect_detail_data(defect_files)
 
     if not records:
+        if progress_win:
+            progress_win.close()
         msg = (
             "データが見つかりませんでした。\n"
             "・フォルダパスを確認してください\n"
@@ -4524,9 +4660,14 @@ def main():
             root_err.destroy()
         sys.exit(1)
 
+    if progress_win:
+        progress_win.update_status("Excel出力中...", f"{len(records)}件のデータを書き込み中", 70)
+
     try:
         write_excel(records, output_path, week_from=week_from, week_to=week_to, defect_records=defect_records, defect_detail_records=defect_detail_records)
     except PermissionError as e:
+        if progress_win:
+            progress_win.close()
         error_msg = str(e)
         print(f"\n  [ERROR] エラー: {error_msg}")
         # エラーログを出力
@@ -4546,6 +4687,8 @@ def main():
             root_err.destroy()
         sys.exit(1)
     except Exception as e:
+        if progress_win:
+            progress_win.close()
         error_msg = str(e)
         print(f"\n  [ERROR] 予期しないエラー: {error_msg}")
         # エラーログを出力
@@ -4561,6 +4704,10 @@ def main():
             )
             root_err.destroy()
         sys.exit(1)
+
+    if progress_win:
+        progress_win.update_status("完了!", "", 100)
+        progress_win.close()
 
     print("\n" + "=" * 60)
 

@@ -88,7 +88,7 @@ python aggregate_test_results.py
 ```
 
 ウィザードが起動し、以下のステップで設定できます：
-1. **入力フォルダ選択**: テストケースExcelファイルが格納されたフォルダを選択
+1. **入力フォルダ選択**: テストケースExcelファイルが格納されたフォルダを選択（複数指定可）
 2. **欠陥一覧ファイル選択**: チーム別の欠陥一覧ファイルを選択（任意）
 3. **週範囲設定**: 週次集計の開始日・終了日を設定（デフォルト: 今日日付）
 4. **出力先設定**: 出力Excelファイルのパスを指定
@@ -99,8 +99,11 @@ python aggregate_test_results.py
 #### macOS / Linux
 
 ```bash
-# 基本的な使い方
+# 基本的な使い方（単一フォルダ）
 python aggregate_test_results.py ./input -o ./output/report.xlsx
+
+# 複数フォルダを指定
+python aggregate_test_results.py ./input_teamA ./input_teamB -o ./output/report.xlsx
 
 # サブフォルダを除外
 python aggregate_test_results.py ./input -o ./output/report.xlsx --no-subfolders
@@ -128,8 +131,11 @@ python aggregate_test_results.py ./input -o ./output/report.xlsx \
 #### Windows (PowerShell / コマンドプロンプト)
 
 ```powershell
-# 基本的な使い方
+# 基本的な使い方（単一フォルダ）
 python aggregate_test_results.py .\input -o .\output\report.xlsx
+
+# 複数フォルダを指定
+python aggregate_test_results.py .\input_teamA .\input_teamB -o .\output\report.xlsx
 
 # サブフォルダを除外
 python aggregate_test_results.py .\input -o .\output\report.xlsx --no-subfolders
@@ -157,7 +163,7 @@ python aggregate_test_results.py .\input -o .\output\report.xlsx `
 
 | オプション | 説明 |
 |-----------|------|
-| `<input_folder>` | テストケースExcelファイルが格納されたフォルダ |
+| `<input_folder> [input_folder2 ...]` | テストケースExcelファイルが格納されたフォルダ（複数指定可） |
 | `-o, --output` | 出力ファイルパス（デフォルト: `./output/テスト進捗集計_{日時}.xlsx`） |
 | `--no-subfolders` | サブフォルダを含めない |
 | `--sheet-prefix` | 対象シートの接頭辞（デフォルト: `ITB`） |

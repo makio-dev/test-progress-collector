@@ -82,7 +82,7 @@ def main():
     # === ファイル3: 基盤チーム (-I-) サブフォルダ内 ===
     create_test_file(
         os.path.join(input_dir, "subdir", "TEST-I-001_基盤共通.xlsx"),
-        "ITB_DB接続",
+        "ITB-DB接続",
         [
             {"test_id": "IT001", "jisshi_yotei": d(-3), "jisshi_jisseki": d(-3), "kensho_yotei": d(-1), "kensho_jisseki": d(-1)},
             {"test_id": "IT002", "jisshi_yotei": d(-2), "jisshi_jisseki": d(-2), "kensho_yotei": d(0), "kensho_jisseki": d(0)},
@@ -112,7 +112,7 @@ def main():
         ]
     )
 
-    print("\n=== テストデータ作成完了 ===")
+    print("\n=== 単一フォルダ テストデータ作成完了 ===")
     print(f"入力フォルダ: {input_dir}")
     print("作成ファイル:")
     print("  - TEST-O-001_オンライン機能.xlsx (オンラインチーム, 10件)")
@@ -121,6 +121,72 @@ def main():
     print("  - subdir/TEST-U-001_運用監視.xlsx (運用チーム, 4件)")
     print("  - TEST_その他機能.xlsx (その他, 2件)")
     print("\n合計: 24件のテストケース")
+
+    # ===================================================================
+    #  複数フォルダテスト用データ
+    # ===================================================================
+    base_dir = os.path.dirname(input_dir)
+    teamA_dir = os.path.join(base_dir, "input_multi", "teamA")
+    teamB_dir = os.path.join(base_dir, "input_multi", "teamB")
+    os.makedirs(teamA_dir, exist_ok=True)
+    os.makedirs(teamB_dir, exist_ok=True)
+
+    # === teamA: オンライン + バッチ ===
+    create_test_file(
+        os.path.join(teamA_dir, "ITB-O-101_ログイン認証.xlsx"),
+        "ITB-ログイン認証",
+        [
+            {"test_id": "MA-O-001", "jisshi_yotei": d(-6), "jisshi_jisseki": d(-6), "kensho_yotei": d(-4), "kensho_jisseki": d(-4)},
+            {"test_id": "MA-O-002", "jisshi_yotei": d(-5), "jisshi_jisseki": d(-5), "kensho_yotei": d(-3), "kensho_jisseki": d(-3)},
+            {"test_id": "MA-O-003", "jisshi_yotei": d(-4), "jisshi_jisseki": d(-4), "kensho_yotei": d(-2), "kensho_jisseki": d(-1)},
+            {"test_id": "MA-O-004", "jisshi_yotei": d(-3), "jisshi_jisseki": d(-2), "kensho_yotei": d(0), "kensho_jisseki": None},
+            {"test_id": "MA-O-005", "jisshi_yotei": d(-1), "jisshi_jisseki": None, "kensho_yotei": d(1), "kensho_jisseki": None},
+        ]
+    )
+
+    create_test_file(
+        os.path.join(teamA_dir, "ITB-B-101_日次バッチ.xlsx"),
+        "ITB-日次バッチ",
+        [
+            {"test_id": "MA-B-001", "jisshi_yotei": d(-4), "jisshi_jisseki": d(-4), "kensho_yotei": d(-2), "kensho_jisseki": d(-2)},
+            {"test_id": "MA-B-002", "jisshi_yotei": d(-3), "jisshi_jisseki": d(-3), "kensho_yotei": d(-1), "kensho_jisseki": d(-1)},
+            {"test_id": "MA-B-003", "jisshi_yotei": d(-1), "jisshi_jisseki": None, "kensho_yotei": d(1), "kensho_jisseki": None},
+        ]
+    )
+
+    # === teamB: 基盤 + 運用 ===
+    create_test_file(
+        os.path.join(teamB_dir, "ITB-I-101_DB接続テスト.xlsx"),
+        "ITB-DB接続",
+        [
+            {"test_id": "MB-I-001", "jisshi_yotei": d(-5), "jisshi_jisseki": d(-5), "kensho_yotei": d(-3), "kensho_jisseki": d(-3)},
+            {"test_id": "MB-I-002", "jisshi_yotei": d(-3), "jisshi_jisseki": d(-3), "kensho_yotei": d(-1), "kensho_jisseki": d(-1)},
+            {"test_id": "MB-I-003", "jisshi_yotei": d(-1), "jisshi_jisseki": d(0), "kensho_yotei": d(1), "kensho_jisseki": None},
+            {"test_id": "MB-I-004", "jisshi_yotei": d(1), "jisshi_jisseki": None, "kensho_yotei": d(3), "kensho_jisseki": None},
+        ]
+    )
+
+    create_test_file(
+        os.path.join(teamB_dir, "ITB-U-101_監視アラート.xlsx"),
+        "ITB-監視アラート",
+        [
+            {"test_id": "MB-U-001", "jisshi_yotei": d(-4), "jisshi_jisseki": d(-4), "kensho_yotei": d(-2), "kensho_jisseki": d(-2)},
+            {"test_id": "MB-U-002", "jisshi_yotei": d(-2), "jisshi_jisseki": d(-2), "kensho_yotei": d(0), "kensho_jisseki": None},
+            {"test_id": "MB-U-003", "jisshi_yotei": d(0), "jisshi_jisseki": None, "kensho_yotei": d(2), "kensho_jisseki": None},
+            {"test_id": "MB-U-004", "jisshi_yotei": d(2), "jisshi_jisseki": None, "kensho_yotei": d(4), "kensho_jisseki": None},
+        ]
+    )
+
+    print("\n=== 複数フォルダ テストデータ作成完了 ===")
+    print(f"teamA: {teamA_dir}")
+    print("  - ITB-O-101_ログイン認証.xlsx (オンライン, 5件)")
+    print("  - ITB-B-101_日次バッチ.xlsx (バッチ, 3件)")
+    print(f"teamB: {teamB_dir}")
+    print("  - ITB-I-101_DB接続テスト.xlsx (基盤, 4件)")
+    print("  - ITB-U-101_監視アラート.xlsx (運用, 4件)")
+    print("\n複数フォルダ合計: 16件のテストケース")
+    print("\n--- 複数フォルダでの実行例 ---")
+    print(f"python aggregate_test_results.py {teamA_dir} {teamB_dir} -o ./output/test_multi.xlsx")
 
 
 if __name__ == "__main__":
