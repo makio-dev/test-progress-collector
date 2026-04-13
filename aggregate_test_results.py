@@ -1910,9 +1910,9 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws.cell(row=row, column=1).fill = PatternFill(start_color=IMPL_HEADER_BG, end_color=IMPL_HEADER_BG, fill_type="solid")
     ws.cell(row=row, column=1).border = THIN_BORDER
 
-    # 日次グループ（B-C列）
+    # 日次グループ（B-C列）- 翌営業日の日付を表示
     ws.merge_cells(f'B{row}:C{row}')
-    ws.cell(row=row, column=2, value="日次")
+    ws.cell(row=row, column=2, value=f'=TEXT($E$2,"M/D")')
     ws.cell(row=row, column=2).font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
     ws.cell(row=row, column=2).fill = PatternFill(start_color=IMPL_HEADER_BG, end_color=IMPL_HEADER_BG, fill_type="solid")
     ws.cell(row=row, column=2).alignment = Alignment(horizontal="center", vertical="center")
@@ -2205,7 +2205,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     # 日次グループ（B-C列）
     ws.merge_cells(f'B{row}:C{row}')
     verify_daily_fill = PatternFill(start_color=VERIFY_HEADER_BG, end_color=VERIFY_HEADER_BG, fill_type="solid")
-    ws.cell(row=row, column=2, value="日次")
+    ws.cell(row=row, column=2, value=f'=TEXT($E$2,"M/D")')
     ws.cell(row=row, column=2).font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
     ws.cell(row=row, column=2).fill = verify_daily_fill
     ws.cell(row=row, column=2).alignment = Alignment(horizontal="center", vertical="center")
