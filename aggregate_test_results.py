@@ -1596,7 +1596,7 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
 
     # --- 遅延一覧シート ---
     ws_delayed = wb.create_sheet("要対応一覧")
-    _write_delayed_sheet(ws_delayed, records, detail_data_start_row, len(records))
+    _write_delayed_sheet(ws_delayed, records, detail_data_start_row, len(records), holidays)
 
     # --- 進捗サマリーシート（ALL）- ダッシュボードより先に作成 ---
     summary_info = {}
@@ -1630,7 +1630,7 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
 
     # --- ダッシュボードシート（サマリーシート作成後に作成）---
     ws_dashboard = wb.create_sheet("ダッシュボード")
-    _write_dashboard_sheet(ws_dashboard, summary_info, teams_in_data, wb, week_from, week_to, defect_summary_info)
+    _write_dashboard_sheet(ws_dashboard, summary_info, teams_in_data, wb, week_from, week_to, defect_summary_info, holidays)
 
     # --- 欠陥詳細データシート（欠陥詳細データがある場合のみ）---
     defect_detail_info = {}
@@ -1726,7 +1726,7 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
     print(f"     サマリーシート: ALL + {len(teams_in_data)}チーム")
 
 
-def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week_to=None, defect_summary_info=None):
+def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week_to=None, defect_summary_info=None, holidays=None):
     """ダッシュボードシート（5秒で状況把握）を作成
 
     構成:
@@ -1754,8 +1754,12 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     from openpyxl.drawing.xdr import XDRPoint2D, XDRPositiveSize2D
     from openpyxl.utils.units import pixels_to_EMU
 
-    today = datetime.now()
-    today_str = today.strftime("%Y/%m/%d")
+    # 基準日 = 前営業日（朝会で確定データを表示するため）
+    if holidays is None:
+        holidays = {}
+    base_date = get_previous_business_day(datetime.now(), holidays)
+    if isinstance(base_date, datetime):
+        base_date = base_date.date()
 
     # グリッド線を非表示
     ws.sheet_view.showGridLines = False
@@ -1789,9 +1793,9 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws['A2'].alignment = Alignment(horizontal="right", vertical="center")
     ws.row_dimensions[2].height = 22
 
-    # B2:D2: 基準日の値（結合セル）- 数式参照用
+    # B2:D2: 基準日の値（結合セル）- 数式参照用（前営業日）
     ws.merge_cells('B2:D2')
-    ws['B2'] = datetime.strptime(today_str, "%Y/%m/%d").date()
+    ws['B2'] = base_date
     ws['B2'].font = Font(name="游ゴシック", size=11, bold=True, color="2B5797")
     ws['B2'].alignment = Alignment(horizontal="center", vertical="center")
     ws['B2'].border = THIN_BORDER
@@ -1799,6 +1803,11 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     # 結合セル内の罫線
     ws['C2'].border = THIN_BORDER
     ws['D2'].border = THIN_BORDER
+
+    # E2: 翌営業日（日次セクション参照用） - 祝日マスタを使って基準日の翌営業日を計算
+    ws['E2'] = f'=WORKDAY($B$2,1,祝日マスタ!$A$5:$A$500)'
+    ws['E2'].font = Font(name="游ゴシック", size=1, color="FFFFFF")  # 非表示
+    ws['E2'].number_format = "YYYY/MM/DD"
 
     # 週範囲セル
     # 週範囲ラベル
@@ -2018,17 +2027,17 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # B: 日次予定 = サマリーの基準日（$B$2）に該当する行のD列（実施予定）
-        # INDEX/MATCHで$B$2の日付に対応する行を取得
-        formula = f"=IFERROR(INDEX('{sheet_name}'!D{data_start_row}:D{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        # B: 日次予定 = サマリーの翌営業日（$E$2）に該当する行のD列（実施予定）
+        # INDEX/MATCHで$E$2の日付に対応する行を取得（$E$2 = 基準日の翌営業日 = 朝会当日）
+        formula = f"=IFERROR(INDEX('{sheet_name}'!D{data_start_row}:D{data_end_row},MATCH($E$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
         cell = ws.cell(row=row, column=2, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(2)
         if row_fill:
             cell.fill = row_fill
 
-        # C: 日次実績 = サマリーの基準日（$B$2）に該当する行のE列（実施実績）
-        formula = f"=IFERROR(INDEX('{sheet_name}'!E{data_start_row}:E{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        # C: 日次実績 = サマリーの翌営業日（$E$2）に該当する行のE列（実施実績）
+        formula = f"=IFERROR(INDEX('{sheet_name}'!E{data_start_row}:E{data_end_row},MATCH($E$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
         cell = ws.cell(row=row, column=3, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(3)
@@ -2301,16 +2310,16 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # B: 日次予定 = サマリーの基準日（$B$2）に該当する行のK列（検証予定）
-        formula = f"=IFERROR(INDEX('{sheet_name}'!K{data_start_row}:K{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        # B: 日次予定 = サマリーの翌営業日（$E$2）に該当する行のK列（検証予定）
+        formula = f"=IFERROR(INDEX('{sheet_name}'!K{data_start_row}:K{data_end_row},MATCH($E$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
         cell = ws.cell(row=row, column=2, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(2)
         if row_fill:
             cell.fill = row_fill
 
-        # C: 日次実績 = サマリーの基準日（$B$2）に該当する行のL列（検証実績）
-        formula = f"=IFERROR(INDEX('{sheet_name}'!L{data_start_row}:L{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        # C: 日次実績 = サマリーの翌営業日（$E$2）に該当する行のL列（検証実績）
+        formula = f"=IFERROR(INDEX('{sheet_name}'!L{data_start_row}:L{data_end_row},MATCH($E$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
         cell = ws.cell(row=row, column=3, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(3)
@@ -2713,15 +2722,18 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws.print_title_rows = '1:2'
 
 
-def _write_delayed_sheet(ws, records, detail_start_row, total_records):
+def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=None):
     """要対応一覧シート（遅延レコードの抽出）を作成"""
 
     # グリッド線を非表示
     ws.sheet_view.showGridLines = False
 
     detail_last_row = detail_start_row + total_records - 1
-    today = datetime.now().date()
-    today_str = today.strftime("%Y/%m/%d")
+    # 基準日 = 前営業日（ダッシュボードと同じ基準）
+    base_date = get_previous_business_day(datetime.now(), holidays)
+    if isinstance(base_date, datetime):
+        base_date = base_date.date()
+    base_date_str = base_date.strftime("%Y/%m/%d")
 
     # 遅延レコードを抽出
     delayed_records = []
@@ -2731,10 +2743,10 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records):
         kensho_yotei = _to_date_obj(rec["検証者_予定"])
         kensho_jisseki = rec["検証者_実績"]
 
-        # 実施遅延: 予定日<=今日 かつ 実績なし
-        jisshi_delayed = jisshi_yotei and jisshi_yotei <= today and not jisshi_jisseki
-        # 検証遅延: 予定日<=今日 かつ 実績なし
-        kensho_delayed = kensho_yotei and kensho_yotei <= today and not kensho_jisseki
+        # 実施遅延: 予定日<=基準日（前営業日）かつ 実績なし
+        jisshi_delayed = jisshi_yotei and jisshi_yotei <= base_date and not jisshi_jisseki
+        # 検証遅延: 予定日<=基準日（前営業日）かつ 実績なし
+        kensho_delayed = kensho_yotei and kensho_yotei <= base_date and not kensho_jisseki
 
         if jisshi_delayed or kensho_delayed:
             rec_copy = rec.copy()
@@ -2752,7 +2764,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records):
     ws.row_dimensions[1].height = 30
 
     # 基準日
-    ws['A2'] = f"基準日: {today_str}"
+    ws['A2'] = f"基準日: {base_date_str}"
     ws['A2'].font = Font(name="游ゴシック", size=11, color="666666")
 
     # サマリー
@@ -3466,11 +3478,13 @@ def _write_summary_sheet(ws, records, detail_start_row, total_record_count, holi
     # === フリーズ（行5まで、C列まで固定） ===
     ws.freeze_panes = 'D6'
 
-    # 基準日行を特定
-    today = datetime.now().date()
+    # 基準日行を特定（前営業日）
+    base_date = get_previous_business_day(datetime.now(), holidays)
+    if isinstance(base_date, datetime):
+        base_date = base_date.date()
     ref_row = data_start_row  # デフォルト
     for i, date_obj in enumerate(date_range):
-        if (date_obj.date() if isinstance(date_obj, datetime) else date_obj) == today:
+        if (date_obj.date() if isinstance(date_obj, datetime) else date_obj) == base_date:
             ref_row = data_start_row + i
             break
 
