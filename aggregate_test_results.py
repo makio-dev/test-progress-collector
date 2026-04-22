@@ -65,6 +65,11 @@ COL_KENSHO_YOTEI   = 19  # S列: 検証者 予定
 COL_KENSHO_JISSEKI  = 20  # T列: 検証者 実績
 DATA_START_ROW = 19
 
+# --- シート単位情報（ケース共通） ---
+COL_TEST_PERSON = 20      # T列（担当者名）
+ROW_TEST_EXECUTOR = 7     # T7: テスト実施者
+ROW_TEST_VERIFIER = 8     # T8: テスト検証者
+
 # --- チーム識別パターン ---
 TEAM_PATTERNS = {
     "-O-": "オンライン",
@@ -472,13 +477,13 @@ class WizardApp(tk.Tk):
         )
         self.step_label.pack(pady=(5, 0))
 
-        # コンテンツフレーム
-        self.content_frame = ttk.Frame(self.main_frame)
-        self.content_frame.pack(fill=tk.BOTH, expand=True)
-
-        # ボタンフレーム
+        # ボタンフレーム（content_frameより先にBOTTOMでpackし、常に表示領域を確保）
         self.button_frame = ttk.Frame(self.main_frame)
-        self.button_frame.pack(fill=tk.X, pady=(20, 0))
+        self.button_frame.pack(fill=tk.X, pady=(20, 0), side=tk.BOTTOM)
+
+        # コンテンツフレーム（残りのスペースを埋める）
+        self.content_frame = ttk.Frame(self.main_frame)
+        self.content_frame.pack(fill=tk.BOTH, expand=True, side=tk.TOP)
 
         self.back_btn = ttk.Button(self.button_frame, text="< 戻る", command=self.go_back)
         self.back_btn.pack(side=tk.LEFT)
@@ -793,8 +798,37 @@ class WizardApp(tk.Tk):
         )
         desc.pack(anchor=tk.W, pady=(0, 10))
 
+        # スクロール可能領域（コンテンツが多くてもボタンは常に表示）
+        scroll_container = ttk.Frame(self.content_frame)
+        scroll_container.pack(fill=tk.BOTH, expand=True)
+
+        step5_canvas = tk.Canvas(scroll_container, highlightthickness=0)
+        step5_scrollbar = ttk.Scrollbar(scroll_container, orient=tk.VERTICAL, command=step5_canvas.yview)
+        step5_inner = ttk.Frame(step5_canvas)
+
+        step5_inner.bind(
+            "<Configure>",
+            lambda e: step5_canvas.configure(scrollregion=step5_canvas.bbox("all"))
+        )
+
+        step5_window = step5_canvas.create_window((0, 0), window=step5_inner, anchor="nw")
+        step5_canvas.configure(yscrollcommand=step5_scrollbar.set)
+
+        def _on_step5_canvas_configure(e):
+            step5_canvas.itemconfig(step5_window, width=e.width)
+        step5_canvas.bind("<Configure>", _on_step5_canvas_configure)
+
+        def _on_step5_mousewheel(e):
+            step5_canvas.yview_scroll(int(-1 * (e.delta / 120)), "units")
+        step5_canvas.bind("<MouseWheel>", _on_step5_mousewheel)
+        step5_canvas.bind("<Button-4>", lambda e: step5_canvas.yview_scroll(-1, "units"))
+        step5_canvas.bind("<Button-5>", lambda e: step5_canvas.yview_scroll(1, "units"))
+
+        step5_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        step5_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
         # 設定内容表示
-        confirm_frame = ttk.LabelFrame(self.content_frame, text="設定内容", padding=10)
+        confirm_frame = ttk.LabelFrame(step5_inner, text="設定内容", padding=10)
         confirm_frame.pack(fill=tk.X, pady=5)
 
         # フォルダ（複数対応）
@@ -855,7 +889,7 @@ class WizardApp(tk.Tk):
 
         # 注意書き
         note = ttk.Label(
-            self.content_frame,
+            step5_inner,
             text="※ 「実行」をクリックすると集計処理を開始します。\n※ 前回集計済みのファイルは自動的にスキップされます。",
             foreground="gray",
             wraplength=480
@@ -1308,6 +1342,12 @@ def collect_data(folder_paths, cache_file=None, include_subfolders=True):
                 sheet_count += 1
                 case_count = 0
 
+                # シート単位のテスト実施者・検証者（T7, T8）- 全ケース共通
+                executor_val = ws.cell(row=ROW_TEST_EXECUTOR, column=COL_TEST_PERSON).value
+                verifier_val = ws.cell(row=ROW_TEST_VERIFIER, column=COL_TEST_PERSON).value
+                test_executor = str(executor_val).strip() if executor_val else ""
+                test_verifier = str(verifier_val).strip() if verifier_val else ""
+
                 for row in range(DATA_START_ROW, ws.max_row + 1):
                     test_id = ws.cell(row=row, column=COL_TEST_ID).value
                     if not test_id:
@@ -1327,6 +1367,8 @@ def collect_data(folder_paths, cache_file=None, include_subfolders=True):
                         "実施者_実績": _to_date(jisshi_jisseki),
                         "検証者_予定": _to_date(kensho_yotei),
                         "検証者_実績": _to_date(kensho_jisseki),
+                        "テスト実施者": test_executor,
+                        "テスト検証者": test_verifier,
                     }
                     file_records.append(record)
                     case_count += 1
@@ -2946,7 +2988,7 @@ def _write_detail_sheet(ws, records):
     ws.sheet_view.showGridLines = False
 
     # タイトル (A1)
-    ws.merge_cells('A1:L1')
+    ws.merge_cells('A1:N1')
     title_cell = ws['A1']
     title_cell.value = "テスト進捗明細"
     title_cell.font = TITLE_FONT
@@ -2954,17 +2996,17 @@ def _write_detail_sheet(ws, records):
     title_cell.alignment = Alignment(horizontal="center", vertical="center")
     ws.row_dimensions[1].height = 25
 
-    # 基準日ラベルと値 (K2, L2) - ダッシュボードのB2を参照
-    ws['K2'] = "基準日:"
-    ws['K2'].font = Font(name="游ゴシック", size=11, bold=True)
-    ws['K2'].alignment = DATA_ALIGN_RIGHT
+    # 基準日ラベルと値 (M2, N2) - ダッシュボードのB2を参照
+    ws['M2'] = "基準日:"
+    ws['M2'].font = Font(name="游ゴシック", size=11, bold=True)
+    ws['M2'].alignment = DATA_ALIGN_RIGHT
 
-    ws['L2'] = "=ダッシュボード!$B$2"
-    ws['L2'].font = REF_DATE_FONT
-    ws['L2'].fill = REF_DATE_FILL
-    ws['L2'].alignment = DATA_ALIGN_CENTER
-    ws['L2'].border = THIN_BORDER
-    ws['L2'].number_format = "YYYY/MM/DD"
+    ws['N2'] = "=ダッシュボード!$B$2"
+    ws['N2'].font = REF_DATE_FONT
+    ws['N2'].fill = REF_DATE_FILL
+    ws['N2'].alignment = DATA_ALIGN_CENTER
+    ws['N2'].border = THIN_BORDER
+    ws['N2'].number_format = "YYYY/MM/DD"
 
     # ヘッダー行 (row 4)
     header_row = 4
@@ -2973,6 +3015,7 @@ def _write_detail_sheet(ws, records):
         "実施者_予定", "実施者_実績", "実施者_状況",
         "検証者_予定", "検証者_実績", "検証者_状況",
         "進捗状況",
+        "テスト実施者", "テスト検証者",
     ]
 
     for col, header in enumerate(detail_headers, 1):
@@ -2988,9 +3031,9 @@ def _write_detail_sheet(ws, records):
         row = data_start_row + i
 
         # 実施者状況（実績があれば完了、なければ予定日と基準日を比較）
-        jisshi_status = '=IF(G{row}<>"","完了",IF(F{row}="","－",IF(F{row}<=$L$2,"遅延","予定")))'.format(row=row)
+        jisshi_status = '=IF(G{row}<>"","完了",IF(F{row}="","－",IF(F{row}<=$N$2,"遅延","予定")))'.format(row=row)
         # 検証者状況
-        kensho_status = '=IF(J{row}<>"","完了",IF(I{row}="","－",IF(I{row}<=$L$2,"遅延","予定")))'.format(row=row)
+        kensho_status = '=IF(J{row}<>"","完了",IF(I{row}="","－",IF(I{row}<=$N$2,"遅延","予定")))'.format(row=row)
         # 全体進捗
         overall_status = '=IF(AND(H{row}="完了",K{row}="完了"),"完了",IF(OR(H{row}="遅延",K{row}="遅延"),"遅延",IF(OR(H{row}="完了",K{row}="完了"),"進行中","予定")))'.format(row=row)
 
@@ -3013,6 +3056,8 @@ def _write_detail_sheet(ws, records):
             kensho_jisseki_obj if kensho_jisseki_obj else "",
             kensho_status,
             overall_status,
+            rec.get("テスト実施者", ""),
+            rec.get("テスト検証者", ""),
         ]
 
         for col, val in enumerate(values, 1):
@@ -3022,7 +3067,7 @@ def _write_detail_sheet(ws, records):
 
             if col == 1:
                 cell.alignment = DATA_ALIGN_CENTER
-            elif col in (4, 5, 6, 7, 8, 9, 10, 11, 12):
+            elif col in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14):
                 cell.alignment = DATA_ALIGN_CENTER
             else:
                 cell.alignment = DATA_ALIGN_LEFT
@@ -3033,7 +3078,7 @@ def _write_detail_sheet(ws, records):
 
     # テーブル作成
     if records:
-        table_ref = f"A{header_row}:L{data_start_row + len(records) - 1}"
+        table_ref = f"A{header_row}:N{data_start_row + len(records) - 1}"
         table = Table(displayName="明細テーブル", ref=table_ref)
         style = TableStyleInfo(
             name="TableStyleMedium2",
@@ -3093,7 +3138,7 @@ def _write_detail_sheet(ws, records):
     )
 
     # 列幅設定
-    detail_widths = [6, 60, 18, 12, 16, 12, 12, 10, 12, 12, 10, 13]  # L列（基準日参照）を13に拡大
+    detail_widths = [6, 60, 18, 12, 16, 12, 12, 10, 12, 12, 10, 13, 16, 16]  # M,N列はテスト実施者・検証者
     for i, w in enumerate(detail_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
@@ -3621,8 +3666,10 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
     PT_TO_EMU = 12700
     SECTION_MERGE_END_COL = 9  # 全セクションヘッダーはI列まで
 
-    base_date = datetime.now()
-    prev_biz_day = get_previous_business_day(base_date, holidays)
+    # 基準日 = 前営業日（他シートと統一、朝会での偽遅延表示を解消）
+    base_date = get_previous_business_day(datetime.now(), holidays)
+    if isinstance(base_date, datetime):
+        base_date = base_date.date()
 
     # 週範囲
     if week_from:
@@ -3894,9 +3941,9 @@ def _write_defect_dashboard_sheet(ws, defect_detail_records, holidays=None, week
             f'=SUM({first_col_letter}{current_row}:{last_col_letter}{current_row})', is_total)
 
         base_col = sum_col + 1
-        # 新規検出: ダッシュボードの基準日($B$2)の前営業日〜基準日（祝日マスタ参照）
+        # 新規検出: ダッシュボードの基準日($B$2=前営業日)当日に検出された件数
         _write_data_cell(current_row, base_col,
-            f"=COUNTIFS('{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\">=\"&WORKDAY('ダッシュボード'!$B$2,-1,'祝日マスタ'!$A$5:$A$500),'{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},\"<=\"&'ダッシュボード'!$B$2)",
+            f"=COUNTIFS('{sn}'!{DD_COL_DETECTED}${ds}:{DD_COL_DETECTED}${de},'ダッシュボード'!$B$2)",
             is_total)
         # 週検出: ダッシュボードの週範囲($G$2〜$I$2)を参照
         _write_data_cell(current_row, base_col + 1,
