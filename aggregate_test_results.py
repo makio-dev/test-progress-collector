@@ -2797,7 +2797,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
             delayed_records.append(rec_copy)
 
     # タイトル
-    ws.merge_cells('A1:H1')
+    ws.merge_cells('A1:J1')
     title_cell = ws['A1']
     title_cell.value = f"要対応一覧（{len(delayed_records)}件）"
     title_cell.font = Font(name="游ゴシック", size=14, bold=True, color="8B0000")
@@ -2811,7 +2811,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
 
     # サマリー
     row = 4
-    ws.merge_cells(f'A{row}:H{row}')
+    ws.merge_cells(f'A{row}:J{row}')
     ws[f'A{row}'] = "■ 遅延サマリー"
     ws[f'A{row}'].font = DASHBOARD_SECTION_FONT
     ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
@@ -2841,13 +2841,13 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
 
     # 遅延一覧
     row += 2
-    ws.merge_cells(f'A{row}:H{row}')
+    ws.merge_cells(f'A{row}:J{row}')
     ws[f'A{row}'] = "■ 遅延一覧"
     ws[f'A{row}'].font = DASHBOARD_SECTION_FONT
     ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
 
     row += 1
-    list_headers = ["No.", "チーム名", "シート名", "テストID", "実施予定", "実施実績", "検証予定", "検証実績"]
+    list_headers = ["No.", "チーム名", "シート名", "テストID", "実施予定", "実施実績", "検証予定", "検証実績", "テスト実施者", "テスト検証者"]
     for col, header in enumerate(list_headers, 1):
         cell = ws.cell(row=row, column=col, value=header)
         cell.font = HEADER_FONT
@@ -2867,6 +2867,8 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
             rec["実施者_実績"] or "未完了",
             rec["検証者_予定"] or "－",
             rec["検証者_実績"] or "未完了",
+            rec.get("テスト実施者", ""),
+            rec.get("テスト検証者", ""),
         ]
         for col, val in enumerate(values, 1):
             cell = ws.cell(row=row, column=col, value=val)
@@ -2885,7 +2887,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
     # テーブル作成
     if delayed_records:
         data_end = data_start + len(delayed_records) - 1
-        table_ref = f"A{data_start - 1}:H{data_end}"
+        table_ref = f"A{data_start - 1}:J{data_end}"
         try:
             table = Table(displayName="遅延一覧テーブル", ref=table_ref)
             style = TableStyleInfo(
@@ -2905,8 +2907,8 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
         row += 1
         ws.cell(row=row, column=1, value="遅延しているテストケースはありません").font = Font(name="游ゴシック", size=11, color="2E7D32", italic=True)
 
-    # 列幅設定（C,D列を広げた）
-    delayed_widths = [12, 14, 30, 25, 14, 14, 14, 14]
+    # 列幅設定（C,D列を広げた、I,J列はテスト実施者・検証者）
+    delayed_widths = [12, 14, 30, 25, 14, 14, 14, 14, 16, 16]
     for i, w in enumerate(delayed_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
