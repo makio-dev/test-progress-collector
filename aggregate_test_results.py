@@ -1672,7 +1672,8 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
 
     # --- ダッシュボードシート（サマリーシート作成後に作成）---
     ws_dashboard = wb.create_sheet("ダッシュボード")
-    _write_dashboard_sheet(ws_dashboard, summary_info, teams_in_data, wb, week_from, week_to, defect_summary_info, holidays)
+    _write_dashboard_sheet(ws_dashboard, summary_info, teams_in_data, wb, week_from, week_to, defect_summary_info, holidays,
+                            detail_start_row=detail_data_start_row, total_records=len(records))
 
     # --- 欠陥詳細データシート（欠陥詳細データがある場合のみ）---
     defect_detail_info = {}
@@ -1768,7 +1769,8 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
     print(f"     サマリーシート: ALL + {len(teams_in_data)}チーム")
 
 
-def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week_to=None, defect_summary_info=None, holidays=None):
+def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week_to=None, defect_summary_info=None, holidays=None,
+                            detail_start_row=None, total_records=None):
     """ダッシュボードシート（5秒で状況把握）を作成
 
     構成:
@@ -1789,6 +1791,10 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     """
     if defect_summary_info is None:
         defect_summary_info = {}
+
+    # 明細シートのデータ範囲（週実績の COUNTIFS で参照する）
+    detail_last_row = (detail_start_row + total_records - 1) if (detail_start_row and total_records) else None
+
     from openpyxl.chart import LineChart, Reference
     from openpyxl.chart.series import SeriesLabel
     from openpyxl.chart.axis import ChartLines
@@ -2094,8 +2100,21 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # E: 週実績 = SUMIFSで週範囲内の実績合計（常に数式を使用）
-        formula = f"=IF(OR({WEEK_FROM_CELL}=\"\",{WEEK_TO_CELL}=\"\"),\"-\",SUMIFS('{sheet_name}'!E{data_start_row}:E{data_end_row},'{sheet_name}'!A{data_start_row}:A{data_end_row},\">=\"&{WEEK_FROM_CELL},'{sheet_name}'!A{data_start_row}:A{data_end_row},\"<=\"&{WEEK_TO_CELL}))"
+        # E: 週実績 = 週範囲内に実施予定があり、かつ実施実績日が入っているレコード数
+        #    （明細シート: F=実施予定, G=実施実績, D=チーム名）
+        if is_total_row:
+            team_clause = ""
+        else:
+            team_clause = f',明細!$D${detail_start_row}:$D${detail_last_row},"{team}"'
+        formula = (
+            f'=IF(OR({WEEK_FROM_CELL}="",{WEEK_TO_CELL}=""),"-",'
+            f'COUNTIFS('
+            f'明細!$F${detail_start_row}:$F${detail_last_row},">="&{WEEK_FROM_CELL},'
+            f'明細!$F${detail_start_row}:$F${detail_last_row},"<="&{WEEK_TO_CELL},'
+            f'明細!$G${detail_start_row}:$G${detail_last_row},"<>"'
+            f'{team_clause}'
+            f'))'
+        )
         cell = ws.cell(row=row, column=5, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(5)
@@ -2376,8 +2395,21 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # E: 週実績 = SUMIFSで週範囲内の実績合計（検証L列、常に数式を使用）
-        formula = f"=IF(OR({WEEK_FROM_CELL}=\"\",{WEEK_TO_CELL}=\"\"),\"-\",SUMIFS('{sheet_name}'!L{data_start_row}:L{data_end_row},'{sheet_name}'!A{data_start_row}:A{data_end_row},\">=\"&{WEEK_FROM_CELL},'{sheet_name}'!A{data_start_row}:A{data_end_row},\"<=\"&{WEEK_TO_CELL}))"
+        # E: 週実績 = 週範囲内に検証予定があり、かつ検証実績日が入っているレコード数
+        #    （明細シート: I=検証予定, J=検証実績, D=チーム名）
+        if is_total_row:
+            team_clause = ""
+        else:
+            team_clause = f',明細!$D${detail_start_row}:$D${detail_last_row},"{team}"'
+        formula = (
+            f'=IF(OR({WEEK_FROM_CELL}="",{WEEK_TO_CELL}=""),"-",'
+            f'COUNTIFS('
+            f'明細!$I${detail_start_row}:$I${detail_last_row},">="&{WEEK_FROM_CELL},'
+            f'明細!$I${detail_start_row}:$I${detail_last_row},"<="&{WEEK_TO_CELL},'
+            f'明細!$J${detail_start_row}:$J${detail_last_row},"<>"'
+            f'{team_clause}'
+            f'))'
+        )
         cell = ws.cell(row=row, column=5, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(5)
