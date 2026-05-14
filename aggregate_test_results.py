@@ -1775,7 +1775,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
 
     構成:
         - 日次: 予定, 実績
-        - 週次: 予定, 実績, 残数, 遅延（週範囲をセルに配置し数式で参照）
+        - 週次: 予定, 実績, 残数（週範囲をセルに配置し数式で参照）
         - 総数: 総数, 予定, 実績, 残数, 遅延, 予定消化率, 実績消化率, 予実差, 状態
         - 欠陥: 週検出, 累積検出, 累積対応, 累積未対応
 
@@ -1940,14 +1940,14 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     # セクション1: 実施進捗
     # =================================================================
     row = 4
-    ws.merge_cells(f'A{row}:P{row}')
+    ws.merge_cells(f'A{row}:O{row}')
     ws[f'A{row}'] = "■ 実施進捗"
     ws[f'A{row}'].font = Font(name="游ゴシック", size=12, bold=True, color="FFFFFF")
     ws[f'A{row}'].fill = PatternFill(start_color=IMPL_SECTION_BG, end_color=IMPL_SECTION_BG, fill_type="solid")
     ws[f'A{row}'].alignment = Alignment(horizontal="left", vertical="center")
     ws[f'A{row}'].border = THIN_BORDER
     # マージされた全セルに罫線を適用
-    for c in range(1, 17):
+    for c in range(1, 16):
         ws.cell(row=row, column=c).border = THIN_BORDER
     ws.row_dimensions[row].height = 24
 
@@ -1968,29 +1968,29 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws.cell(row=row, column=3).fill = PatternFill(start_color=IMPL_HEADER_BG, end_color=IMPL_HEADER_BG, fill_type="solid")
     ws.cell(row=row, column=3).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
 
-    # 週次グループ（D-G列）- マージ前に全セルにスタイル設定
+    # 週次グループ（D-F列）- マージ前に全セルにスタイル設定
     impl_week_fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")
-    for c in range(4, 8):
+    for c in range(4, 7):
         ws.cell(row=row, column=c).fill = impl_week_fill
         ws.cell(row=row, column=c).border = Border(left=THIN_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-    ws.merge_cells(f'D{row}:G{row}')
+    ws.merge_cells(f'D{row}:F{row}')
     ws.cell(row=row, column=4, value="週次")
     ws.cell(row=row, column=4).font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
     ws.cell(row=row, column=4).alignment = Alignment(horizontal="center", vertical="center")
     ws.cell(row=row, column=4).border = Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-    ws.cell(row=row, column=7).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
+    ws.cell(row=row, column=6).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
 
-    # 総計グループ（H-P列）- マージ前に全セルにスタイル設定
+    # 総計グループ（G-O列）- マージ前に全セルにスタイル設定
     impl_total_fill = PatternFill(start_color=IMPL_HEADER_BG, end_color=IMPL_HEADER_BG, fill_type="solid")
-    for c in range(8, 17):
+    for c in range(7, 16):
         ws.cell(row=row, column=c).fill = impl_total_fill
         ws.cell(row=row, column=c).border = Border(left=THIN_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-    ws.merge_cells(f'H{row}:P{row}')
-    ws.cell(row=row, column=8, value="総計")
-    ws.cell(row=row, column=8).font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
-    ws.cell(row=row, column=8).alignment = Alignment(horizontal="center", vertical="center")
-    ws.cell(row=row, column=8).border = Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-    ws.cell(row=row, column=16).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
+    ws.merge_cells(f'G{row}:O{row}')
+    ws.cell(row=row, column=7, value="総計")
+    ws.cell(row=row, column=7).font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
+    ws.cell(row=row, column=7).alignment = Alignment(horizontal="center", vertical="center")
+    ws.cell(row=row, column=7).border = Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
+    ws.cell(row=row, column=15).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
     ws.row_dimensions[row].height = 20
 
     # サブヘッダー行（各項目名）
@@ -2007,7 +2007,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         # 日次（基準日ベース）
         "予定", "実績",
         # 週次（週範囲ベース）
-        "予定", "実績", "残数", "遅延",
+        "予定", "実績", "残数",
         # 総計
         "総数", "予定累計", "実績累計", "残数", "遅延",
         "予定消化率", "実績消化率", "予実差", "状態"
@@ -2030,16 +2030,16 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         elif col == 4:  # 週次開始
             cell.fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")
             cell.border = GROUP_LEFT_BORDER
-        elif col == 7:  # 週次終了
+        elif col == 6:  # 週次終了
             cell.fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")
             cell.border = GROUP_RIGHT_BORDER
-        elif col <= 6:  # 週次中間
+        elif col == 5:  # 週次中間
             cell.fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")
             cell.border = THIN_BORDER
-        elif col == 8:  # 総計開始
+        elif col == 7:  # 総計開始
             cell.fill = PatternFill(start_color=IMPL_HEADER_BG, end_color=IMPL_HEADER_BG, fill_type="solid")
             cell.border = GROUP_LEFT_BORDER
-        elif col == 16:  # 総計終了
+        elif col == 15:  # 総計終了
             cell.fill = PatternFill(start_color=IMPL_HEADER_BG, end_color=IMPL_HEADER_BG, fill_type="solid")
             cell.border = GROUP_RIGHT_BORDER
         else:  # 総計中間
@@ -2129,87 +2129,71 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # G: 週遅延 = 週残数（遅延がある場合のみ表示、常に数式を使用）
-        formula = f'=IF(OR({WEEK_FROM_CELL}="",{WEEK_TO_CELL}=""),"-",IF(F{row}>0,F{row},0))'
-        cell = ws.cell(row=row, column=7, value=formula)
+        # G: 総数 = サマリーの合計行D列
+        cell = ws.cell(row=row, column=7, value=f"='{sheet_name}'!D{total_row}")
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(7)
         if row_fill:
             cell.fill = row_fill
 
-        # H: 総数 = サマリーの合計行D列
-        cell = ws.cell(row=row, column=8, value=f"='{sheet_name}'!D{total_row}")
+        # H: 予定累計 = サマリーの基準日（$B$2）に該当する行のG列
+        formula = f"=IFERROR(INDEX('{sheet_name}'!G{data_start_row}:G{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        cell = ws.cell(row=row, column=8, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(8)
         if row_fill:
             cell.fill = row_fill
 
-        # I: 予定累計 = サマリーの基準日（$B$2）に該当する行のG列
-        formula = f"=IFERROR(INDEX('{sheet_name}'!G{data_start_row}:G{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        # I: 実績累計 = サマリーの基準日（$B$2）に該当する行のH列
+        formula = f"=IFERROR(INDEX('{sheet_name}'!H{data_start_row}:H{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
         cell = ws.cell(row=row, column=9, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(9)
         if row_fill:
             cell.fill = row_fill
 
-        # J: 実績累計 = サマリーの基準日（$B$2）に該当する行のH列
-        formula = f"=IFERROR(INDEX('{sheet_name}'!H{data_start_row}:H{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
-        cell = ws.cell(row=row, column=10, value=formula)
+        # J: 残数 = 総数 - 実績累計
+        cell = ws.cell(row=row, column=10, value=f"=G{row}-I{row}")
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(10)
         if row_fill:
             cell.fill = row_fill
 
-        # K: 残数 = 総数 - 実績累計
-        cell = ws.cell(row=row, column=11, value=f"=H{row}-J{row}")
+        # K: 遅延 = MAX(0, 予定累計 - 実績累計)
+        cell = ws.cell(row=row, column=11, value=f"=MAX(0,H{row}-I{row})")
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(11)
         if row_fill:
             cell.fill = row_fill
 
-        # L: 遅延 = MAX(0, 予定累計 - 実績累計)
-        cell = ws.cell(row=row, column=12, value=f"=MAX(0,I{row}-J{row})")
+        # L: 予定消化率 = 予定累計 / 総数
+        cell = ws.cell(row=row, column=12, value=f"=IF(G{row}=0,0,H{row}/G{row})")
+        cell.number_format = "0.0%"
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(12)
         if row_fill:
             cell.fill = row_fill
 
-        # M: 予定消化率 = 予定累計 / 総数
-        cell = ws.cell(row=row, column=13, value=f"=IF(H{row}=0,0,I{row}/H{row})")
+        # M: 実績消化率 = 実績累計 / 総数
+        cell = ws.cell(row=row, column=13, value=f"=IF(G{row}=0,0,I{row}/G{row})")
         cell.number_format = "0.0%"
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(13)
         if row_fill:
             cell.fill = row_fill
 
-        # N: 実績消化率 = 実績累計 / 総数
-        cell = ws.cell(row=row, column=14, value=f"=IF(H{row}=0,0,J{row}/H{row})")
-        cell.number_format = "0.0%"
-        cell.alignment = DATA_ALIGN_CENTER
-        cell.border = THIN_BORDER
-        if row_fill:
-            cell.fill = row_fill
-
-        # N: 実績消化率 = 実績累計 / 総数
-        cell = ws.cell(row=row, column=14, value=f"=IF(H{row}=0,0,J{row}/H{row})")
+        # N: 予実差 = 実績消化率 - 予定消化率
+        cell = ws.cell(row=row, column=14, value=f"=M{row}-L{row}")
         cell.number_format = "0.0%"
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(14)
         if row_fill:
             cell.fill = row_fill
 
-        # O: 予実差 = 実績消化率 - 予定消化率
-        cell = ws.cell(row=row, column=15, value=f"=N{row}-M{row}")
-        cell.number_format = "0.0%"
+        # O: 状態
+        cell = ws.cell(row=row, column=15, value=f'=IF(I{row}>=G{row},"完了",IF(K{row}>0,"遅延","順調"))')
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(15)
-        if row_fill:
-            cell.fill = row_fill
-
-        # P: 状態
-        cell = ws.cell(row=row, column=16, value=f'=IF(J{row}>=H{row},"完了",IF(L{row}>0,"遅延","順調"))')
-        cell.alignment = DATA_ALIGN_CENTER
-        cell.border = get_data_border(16)
         if row_fill:
             cell.fill = row_fill
 
@@ -2217,43 +2201,38 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
 
     # 実施の条件付き書式（遅延列と状態列）
     ws.conditional_formatting.add(
-        f"L{impl_data_start}:L{impl_data_end}",
-        FormulaRule(formula=[f'L{impl_data_start}>0'], fill=DANGER_FILL, font=DANGER_FONT)
+        f"K{impl_data_start}:K{impl_data_end}",
+        FormulaRule(formula=[f'K{impl_data_start}>0'], fill=DANGER_FILL, font=DANGER_FONT)
+    )
+    ws.conditional_formatting.add(
+        f"N{impl_data_start}:N{impl_data_end}",
+        FormulaRule(formula=[f'N{impl_data_start}<0'], fill=DANGER_FILL, font=DANGER_FONT)
     )
     ws.conditional_formatting.add(
         f"O{impl_data_start}:O{impl_data_end}",
-        FormulaRule(formula=[f'O{impl_data_start}<0'], fill=DANGER_FILL, font=DANGER_FONT)
+        FormulaRule(formula=[f'O{impl_data_start}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
     )
     ws.conditional_formatting.add(
-        f"P{impl_data_start}:P{impl_data_end}",
-        FormulaRule(formula=[f'P{impl_data_start}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
+        f"O{impl_data_start}:O{impl_data_end}",
+        FormulaRule(formula=[f'O{impl_data_start}="遅延"'], fill=DANGER_FILL, font=DANGER_FONT)
     )
     ws.conditional_formatting.add(
-        f"P{impl_data_start}:P{impl_data_end}",
-        FormulaRule(formula=[f'P{impl_data_start}="遅延"'], fill=DANGER_FILL, font=DANGER_FONT)
-    )
-    ws.conditional_formatting.add(
-        f"P{impl_data_start}:P{impl_data_end}",
-        FormulaRule(formula=[f'P{impl_data_start}="順調"'], fill=OK_FILL, font=OK_FONT)
-    )
-    # 週遅延列の条件付き書式（常に適用）
-    ws.conditional_formatting.add(
-        f"G{impl_data_start}:G{impl_data_end}",
-        FormulaRule(formula=[f'AND(ISNUMBER(G{impl_data_start}),G{impl_data_start}>0)'], fill=DANGER_FILL, font=DANGER_FONT)
+        f"O{impl_data_start}:O{impl_data_end}",
+        FormulaRule(formula=[f'O{impl_data_start}="順調"'], fill=OK_FILL, font=OK_FONT)
     )
 
     # =================================================================
     # セクション2: 検証進捗
     # =================================================================
     row += 2
-    ws.merge_cells(f'A{row}:P{row}')
+    ws.merge_cells(f'A{row}:O{row}')
     ws[f'A{row}'] = "■ 検証進捗"
     ws[f'A{row}'].font = Font(name="游ゴシック", size=12, bold=True, color="FFFFFF")
     ws[f'A{row}'].fill = PatternFill(start_color=VERIFY_SECTION_BG, end_color=VERIFY_SECTION_BG, fill_type="solid")
     ws[f'A{row}'].alignment = Alignment(horizontal="left", vertical="center")
     ws.row_dimensions[row].height = 24
     # セクションヘッダー全体に罫線を適用
-    for c in range(1, 17):
+    for c in range(1, 16):
         ws.cell(row=row, column=c).border = THIN_BORDER
 
     # グループヘッダー行（日次 | 週次 | 総計）
@@ -2274,29 +2253,29 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws.cell(row=row, column=3).fill = verify_daily_fill
     ws.cell(row=row, column=3).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
 
-    # 週次グループ（D-G列）- マージ前に全セルにスタイル設定
+    # 週次グループ（D-F列）- マージ前に全セルにスタイル設定
     verify_week_fill = PatternFill(start_color="388E3C", end_color="388E3C", fill_type="solid")
-    for c in range(4, 8):
+    for c in range(4, 7):
         ws.cell(row=row, column=c).fill = verify_week_fill
         ws.cell(row=row, column=c).border = Border(left=THIN_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-    ws.merge_cells(f'D{row}:G{row}')
+    ws.merge_cells(f'D{row}:F{row}')
     ws.cell(row=row, column=4, value="週次")
     ws.cell(row=row, column=4).font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
     ws.cell(row=row, column=4).alignment = Alignment(horizontal="center", vertical="center")
     ws.cell(row=row, column=4).border = Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-    ws.cell(row=row, column=7).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
+    ws.cell(row=row, column=6).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
 
-    # 総計グループ（H-P列）- マージ前に全セルにスタイル設定
+    # 総計グループ（G-O列）- マージ前に全セルにスタイル設定
     verify_total_fill = PatternFill(start_color=VERIFY_HEADER_BG, end_color=VERIFY_HEADER_BG, fill_type="solid")
-    for c in range(8, 17):
+    for c in range(7, 16):
         ws.cell(row=row, column=c).fill = verify_total_fill
         ws.cell(row=row, column=c).border = Border(left=THIN_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-    ws.merge_cells(f'H{row}:P{row}')
-    ws.cell(row=row, column=8, value="総計")
-    ws.cell(row=row, column=8).font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
-    ws.cell(row=row, column=8).alignment = Alignment(horizontal="center", vertical="center")
-    ws.cell(row=row, column=8).border = Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-    ws.cell(row=row, column=16).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
+    ws.merge_cells(f'G{row}:O{row}')
+    ws.cell(row=row, column=7, value="総計")
+    ws.cell(row=row, column=7).font = Font(name="游ゴシック", size=10, bold=True, color="FFFFFF")
+    ws.cell(row=row, column=7).alignment = Alignment(horizontal="center", vertical="center")
+    ws.cell(row=row, column=7).border = Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
+    ws.cell(row=row, column=15).border = Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
     ws.row_dimensions[row].height = 20
 
     # サブヘッダー行（各項目名）
@@ -2326,16 +2305,16 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         elif col == 4:  # 週次開始
             cell.fill = PatternFill(start_color="388E3C", end_color="388E3C", fill_type="solid")
             cell.border = GROUP_LEFT_BORDER
-        elif col == 7:  # 週次終了
+        elif col == 6:  # 週次終了
             cell.fill = PatternFill(start_color="388E3C", end_color="388E3C", fill_type="solid")
             cell.border = GROUP_RIGHT_BORDER
-        elif col <= 6:  # 週次中間
+        elif col == 5:  # 週次中間
             cell.fill = PatternFill(start_color="388E3C", end_color="388E3C", fill_type="solid")
             cell.border = THIN_BORDER
-        elif col == 8:  # 総計開始
+        elif col == 7:  # 総計開始
             cell.fill = PatternFill(start_color=VERIFY_HEADER_BG, end_color=VERIFY_HEADER_BG, fill_type="solid")
             cell.border = GROUP_LEFT_BORDER
-        elif col == 16:  # 総計終了
+        elif col == 15:  # 総計終了
             cell.fill = PatternFill(start_color=VERIFY_HEADER_BG, end_color=VERIFY_HEADER_BG, fill_type="solid")
             cell.border = GROUP_RIGHT_BORDER
         else:  # 総計中間
@@ -2424,79 +2403,71 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # G: 週遅延 = 週残数（遅延がある場合のみ表示、常に数式を使用）
-        formula = f'=IF(OR({WEEK_FROM_CELL}="",{WEEK_TO_CELL}=""),"-",IF(F{row}>0,F{row},0))'
-        cell = ws.cell(row=row, column=7, value=formula)
+        # G: 総数 = サマリーの合計行K列（検証予定の合計）
+        cell = ws.cell(row=row, column=7, value=f"='{sheet_name}'!K{total_row}")
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(7)
         if row_fill:
             cell.fill = row_fill
 
-        # H: 総数 = サマリーの合計行K列（検証予定の合計）
-        cell = ws.cell(row=row, column=8, value=f"='{sheet_name}'!K{total_row}")
+        # H: 予定累計 = サマリーの基準日（$B$2）に該当する行のN列
+        formula = f"=IFERROR(INDEX('{sheet_name}'!N{data_start_row}:N{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        cell = ws.cell(row=row, column=8, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(8)
         if row_fill:
             cell.fill = row_fill
 
-        # I: 予定累計 = サマリーの基準日（$B$2）に該当する行のN列
-        formula = f"=IFERROR(INDEX('{sheet_name}'!N{data_start_row}:N{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        # I: 実績累計 = サマリーの基準日（$B$2）に該当する行のO列
+        formula = f"=IFERROR(INDEX('{sheet_name}'!O{data_start_row}:O{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
         cell = ws.cell(row=row, column=9, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(9)
         if row_fill:
             cell.fill = row_fill
 
-        # J: 実績累計 = サマリーの基準日（$B$2）に該当する行のO列
-        formula = f"=IFERROR(INDEX('{sheet_name}'!O{data_start_row}:O{data_end_row},MATCH($B$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
-        cell = ws.cell(row=row, column=10, value=formula)
+        # J: 残数 = 総数 - 実績累計
+        cell = ws.cell(row=row, column=10, value=f"=G{row}-I{row}")
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(10)
         if row_fill:
             cell.fill = row_fill
 
-        # K: 残数 = 総数 - 実績累計
-        cell = ws.cell(row=row, column=11, value=f"=H{row}-J{row}")
+        # K: 遅延 = MAX(0, 予定累計 - 実績累計)
+        cell = ws.cell(row=row, column=11, value=f"=MAX(0,H{row}-I{row})")
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(11)
         if row_fill:
             cell.fill = row_fill
 
-        # L: 遅延 = MAX(0, 予定累計 - 実績累計)
-        cell = ws.cell(row=row, column=12, value=f"=MAX(0,I{row}-J{row})")
+        # L: 予定消化率 = 予定累計 / 総数
+        cell = ws.cell(row=row, column=12, value=f"=IF(G{row}=0,0,H{row}/G{row})")
+        cell.number_format = "0.0%"
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(12)
         if row_fill:
             cell.fill = row_fill
 
-        # M: 予定消化率 = 予定累計 / 総数
-        cell = ws.cell(row=row, column=13, value=f"=IF(H{row}=0,0,I{row}/H{row})")
+        # M: 実績消化率 = 実績累計 / 総数
+        cell = ws.cell(row=row, column=13, value=f"=IF(G{row}=0,0,I{row}/G{row})")
         cell.number_format = "0.0%"
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(13)
         if row_fill:
             cell.fill = row_fill
 
-        # N: 実績消化率 = 実績累計 / 総数
-        cell = ws.cell(row=row, column=14, value=f"=IF(H{row}=0,0,J{row}/H{row})")
+        # N: 予実差 = 実績消化率 - 予定消化率
+        cell = ws.cell(row=row, column=14, value=f"=M{row}-L{row}")
         cell.number_format = "0.0%"
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(14)
         if row_fill:
             cell.fill = row_fill
 
-        # O: 予実差 = 実績消化率 - 予定消化率
-        cell = ws.cell(row=row, column=15, value=f"=N{row}-M{row}")
-        cell.number_format = "0.0%"
+        # O: 状態
+        cell = ws.cell(row=row, column=15, value=f'=IF(I{row}>=G{row},"完了",IF(K{row}>0,"遅延","順調"))')
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(15)
-        if row_fill:
-            cell.fill = row_fill
-
-        # P: 状態
-        cell = ws.cell(row=row, column=16, value=f'=IF(J{row}>=H{row},"完了",IF(L{row}>0,"遅延","順調"))')
-        cell.alignment = DATA_ALIGN_CENTER
-        cell.border = get_data_border(16)
         if row_fill:
             cell.fill = row_fill
 
@@ -2504,29 +2475,24 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
 
     # 検証の条件付き書式
     ws.conditional_formatting.add(
-        f"L{verify_data_start}:L{verify_data_end}",
-        FormulaRule(formula=[f'L{verify_data_start}>0'], fill=DANGER_FILL, font=DANGER_FONT)
+        f"K{verify_data_start}:K{verify_data_end}",
+        FormulaRule(formula=[f'K{verify_data_start}>0'], fill=DANGER_FILL, font=DANGER_FONT)
+    )
+    ws.conditional_formatting.add(
+        f"N{verify_data_start}:N{verify_data_end}",
+        FormulaRule(formula=[f'N{verify_data_start}<0'], fill=DANGER_FILL, font=DANGER_FONT)
     )
     ws.conditional_formatting.add(
         f"O{verify_data_start}:O{verify_data_end}",
-        FormulaRule(formula=[f'O{verify_data_start}<0'], fill=DANGER_FILL, font=DANGER_FONT)
+        FormulaRule(formula=[f'O{verify_data_start}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
     )
     ws.conditional_formatting.add(
-        f"P{verify_data_start}:P{verify_data_end}",
-        FormulaRule(formula=[f'P{verify_data_start}="完了"'], fill=COMPLETE_FILL, font=COMPLETE_FONT)
+        f"O{verify_data_start}:O{verify_data_end}",
+        FormulaRule(formula=[f'O{verify_data_start}="遅延"'], fill=DANGER_FILL, font=DANGER_FONT)
     )
     ws.conditional_formatting.add(
-        f"P{verify_data_start}:P{verify_data_end}",
-        FormulaRule(formula=[f'P{verify_data_start}="遅延"'], fill=DANGER_FILL, font=DANGER_FONT)
-    )
-    ws.conditional_formatting.add(
-        f"P{verify_data_start}:P{verify_data_end}",
-        FormulaRule(formula=[f'P{verify_data_start}="順調"'], fill=OK_FILL, font=OK_FONT)
-    )
-    # 週遅延列の条件付き書式（常に適用）
-    ws.conditional_formatting.add(
-        f"G{verify_data_start}:G{verify_data_end}",
-        FormulaRule(formula=[f'AND(ISNUMBER(G{verify_data_start}),G{verify_data_start}>0)'], fill=DANGER_FILL, font=DANGER_FONT)
+        f"O{verify_data_start}:O{verify_data_end}",
+        FormulaRule(formula=[f'O{verify_data_start}="順調"'], fill=OK_FILL, font=OK_FONT)
     )
 
     # =================================================================
@@ -2536,7 +2502,7 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     from openpyxl.drawing.text import Paragraph, ParagraphProperties, CharacterProperties, Font as DrawingFont
 
     row += 2
-    ws.merge_cells(f'A{row}:P{row}')
+    ws.merge_cells(f'A{row}:O{row}')
     ws[f'A{row}'] = "■ 進捗推移チャート（左: 実施 / 右: 検証）　※実施予定=青、検証予定=緑、実績=オレンジ"
     ws[f'A{row}'].font = Font(name="游ゴシック", size=12, bold=True, color="505050")
     ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
@@ -2781,16 +2747,15 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
     ws.column_dimensions['D'].width = 8    # 週予定
     ws.column_dimensions['E'].width = 10   # 週実績（広げた）
     ws.column_dimensions['F'].width = 8    # 週残数
-    ws.column_dimensions['G'].width = 10   # 週遅延（広げた）
-    ws.column_dimensions['H'].width = 8    # 総数
-    ws.column_dimensions['I'].width = 10   # 予定累計
-    ws.column_dimensions['J'].width = 10   # 実績累計
-    ws.column_dimensions['K'].width = 8    # 残数
-    ws.column_dimensions['L'].width = 8    # 遅延
-    ws.column_dimensions['M'].width = 10   # 予定消化率
-    ws.column_dimensions['N'].width = 10   # 実績消化率
-    ws.column_dimensions['O'].width = 8    # 予実差
-    ws.column_dimensions['P'].width = 8    # 状態
+    ws.column_dimensions['G'].width = 8    # 総数
+    ws.column_dimensions['H'].width = 10   # 予定累計
+    ws.column_dimensions['I'].width = 10   # 実績累計
+    ws.column_dimensions['J'].width = 8    # 残数
+    ws.column_dimensions['K'].width = 8    # 遅延
+    ws.column_dimensions['L'].width = 10   # 予定消化率
+    ws.column_dimensions['M'].width = 10   # 実績消化率
+    ws.column_dimensions['N'].width = 8    # 予実差
+    ws.column_dimensions['O'].width = 8    # 状態
 
     # 印刷設定
     ws.print_title_rows = '1:2'
