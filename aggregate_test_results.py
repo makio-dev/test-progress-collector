@@ -1698,10 +1698,11 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
         _write_defect_dashboard_sheet(ws_defect_db, defect_detail_records, holidays, week_from, week_to, defect_detail_info)
 
     # シートの順序を調整
-    # 目標の順序: ダッシュボード, 欠陥ダッシュボード, 要対応一覧, 進捗サマリー_ALL, チーム別進捗..., 欠陥サマリー_ALL, チーム別欠陥..., 明細, 祝日マスタ
+    # 目標の順序: ダッシュボード, 欠陥ダッシュボード, 明細, 要対応一覧, 進捗サマリー_ALL, チーム別進捗..., 欠陥サマリー_ALL, チーム別欠陥..., 祝日マスタ
     sheet_order = ["ダッシュボード"]
     if "欠陥ダッシュボード" in wb.sheetnames:
         sheet_order.append("欠陥ダッシュボード")
+    sheet_order.append("明細")
     sheet_order.extend(["要対応一覧", "進捗サマリー_ALL"])
     for team_name in teams_in_data:
         sheet_order.append(f"進捗サマリー_{team_name}")
@@ -1719,7 +1720,7 @@ def write_excel(records, output_path, holidays=None, week_from=None, week_to=Non
             detail_sheet = f"欠陥詳細_{team_name}"
             if detail_sheet in wb.sheetnames:
                 sheet_order.append(detail_sheet)
-    sheet_order.extend(["明細", "祝日マスタ"])
+    sheet_order.append("祝日マスタ")
 
     # シートを並び替え
     for i, sheet_name in enumerate(sheet_order):
@@ -1912,26 +1913,26 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         bottom=THIN_SOLID_SIDE,
     )
 
-    # データ行用の罫線設定関数（全セクション共通）
+    # データ行用の罫線設定関数（全セクション共通、15列構成: A〜O）
     def get_data_border(col):
         """列番号に応じたグループ境界罫線を返す"""
         if col == 1:  # チーム列
             return THIN_BORDER
-        elif col == 2:  # 日次開始
+        elif col == 2:  # 日次開始 B
             return Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-        elif col == 3:  # 日次終了
+        elif col == 3:  # 日次終了 C
             return Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-        elif col == 4:  # 週次開始
+        elif col == 4:  # 週次開始 D
             return Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-        elif col >= 5 and col <= 6:  # 週次中間
+        elif col == 5:  # 週次中間 E
             return THIN_BORDER
-        elif col == 7:  # 週次終了
+        elif col == 6:  # 週次終了 F
             return Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-        elif col == 8:  # 総計開始
+        elif col == 7:  # 総計開始 G
             return Border(left=MEDIUM_SOLID_SIDE, right=THIN_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
-        elif col >= 9 and col <= 15:  # 総計中間
+        elif col >= 8 and col <= 14:  # 総計中間 H〜N
             return THIN_BORDER
-        elif col == 16:  # 総計終了
+        elif col == 15:  # 総計終了 O
             return Border(left=THIN_SOLID_SIDE, right=MEDIUM_SOLID_SIDE, top=THIN_SOLID_SIDE, bottom=THIN_SOLID_SIDE)
         else:
             return THIN_BORDER
@@ -2084,8 +2085,19 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # C: 日次実績 = サマリーの翌営業日（$E$2）に該当する行のE列（実施実績）
-        formula = f"=IFERROR(INDEX('{sheet_name}'!E{data_start_row}:E{data_end_row},MATCH($E$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        # C: 日次実績 = 実施予定が $E$2 のレコードのうち実施実績日が入っているもの
+        #    （明細シート: F=実施予定, G=実施実績, D=チーム名）
+        if is_total_row:
+            team_clause = ""
+        else:
+            team_clause = f',明細!$D${detail_start_row}:$D${detail_last_row},"{team}"'
+        formula = (
+            f'=COUNTIFS('
+            f'明細!$F${detail_start_row}:$F${detail_last_row},$E$2,'
+            f'明細!$G${detail_start_row}:$G${detail_last_row},"<>"'
+            f'{team_clause}'
+            f')'
+        )
         cell = ws.cell(row=row, column=3, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(3)
@@ -2358,8 +2370,19 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         if row_fill:
             cell.fill = row_fill
 
-        # C: 日次実績 = サマリーの翌営業日（$E$2）に該当する行のL列（検証実績）
-        formula = f"=IFERROR(INDEX('{sheet_name}'!L{data_start_row}:L{data_end_row},MATCH($E$2,'{sheet_name}'!A{data_start_row}:A{data_end_row},0)),0)"
+        # C: 日次実績 = 検証予定が $E$2 のレコードのうち検証実績日が入っているもの
+        #    （明細シート: I=検証予定, J=検証実績, D=チーム名）
+        if is_total_row:
+            team_clause = ""
+        else:
+            team_clause = f',明細!$D${detail_start_row}:$D${detail_last_row},"{team}"'
+        formula = (
+            f'=COUNTIFS('
+            f'明細!$I${detail_start_row}:$I${detail_last_row},$E$2,'
+            f'明細!$J${detail_start_row}:$J${detail_last_row},"<>"'
+            f'{team_clause}'
+            f')'
+        )
         cell = ws.cell(row=row, column=3, value=formula)
         cell.alignment = DATA_ALIGN_CENTER
         cell.border = get_data_border(3)
@@ -2741,21 +2764,9 @@ def _write_dashboard_sheet(ws, summary_info, team_list, wb, week_from=None, week
         chart_count += 1
 
     # --- 列幅設定（新しい16列構成に対応）---
-    ws.column_dimensions['A'].width = 10   # チーム
-    ws.column_dimensions['B'].width = 8    # 日次予定
-    ws.column_dimensions['C'].width = 8    # 日次実績
-    ws.column_dimensions['D'].width = 8    # 週予定
-    ws.column_dimensions['E'].width = 10   # 週実績（広げた）
-    ws.column_dimensions['F'].width = 8    # 週残数
-    ws.column_dimensions['G'].width = 8    # 総数
-    ws.column_dimensions['H'].width = 10   # 予定累計
-    ws.column_dimensions['I'].width = 10   # 実績累計
-    ws.column_dimensions['J'].width = 8    # 残数
-    ws.column_dimensions['K'].width = 8    # 遅延
-    ws.column_dimensions['L'].width = 10   # 予定消化率
-    ws.column_dimensions['M'].width = 10   # 実績消化率
-    ws.column_dimensions['N'].width = 8    # 予実差
-    ws.column_dimensions['O'].width = 8    # 状態
+    # 表部分の列幅を最大幅に統一（A〜O）
+    for col_letter in "ABCDEFGHIJKLMNO":
+        ws.column_dimensions[col_letter].width = 10
 
     # 印刷設定
     ws.print_title_rows = '1:2'
@@ -2844,7 +2855,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
     ws[f'A{row}'].fill = PatternFill(start_color="F5F5F5", end_color="F5F5F5", fill_type="solid")
 
     row += 1
-    list_headers = ["No.", "チーム名", "シート名", "テストID", "実施予定", "実施実績", "検証予定", "検証実績", "テスト実施者", "テスト検証者"]
+    list_headers = ["No.", "チーム名", "シート名", "テストID", "実施予定", "実施実績", "検証予定", "検証実績", "テスト実施者", "テスト検証者", "ファイルパス"]
     for col, header in enumerate(list_headers, 1):
         cell = ws.cell(row=row, column=col, value=header)
         cell.font = HEADER_FONT
@@ -2866,6 +2877,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
             rec["検証者_実績"] or "未完了",
             rec.get("テスト実施者", ""),
             rec.get("テスト検証者", ""),
+            rec.get("ファイル名", ""),
         ]
         for col, val in enumerate(values, 1):
             cell = ws.cell(row=row, column=col, value=val)
@@ -2884,7 +2896,7 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
     # テーブル作成
     if delayed_records:
         data_end = data_start + len(delayed_records) - 1
-        table_ref = f"A{data_start - 1}:J{data_end}"
+        table_ref = f"A{data_start - 1}:K{data_end}"
         try:
             table = Table(displayName="遅延一覧テーブル", ref=table_ref)
             style = TableStyleInfo(
@@ -2904,8 +2916,8 @@ def _write_delayed_sheet(ws, records, detail_start_row, total_records, holidays=
         row += 1
         ws.cell(row=row, column=1, value="遅延しているテストケースはありません").font = Font(name="游ゴシック", size=11, color="2E7D32", italic=True)
 
-    # 列幅設定（C,D列を広げた、I,J列はテスト実施者・検証者）
-    delayed_widths = [12, 14, 30, 25, 14, 14, 14, 14, 16, 16]
+    # 列幅設定（C,D列を広げた、I,J列はテスト実施者・検証者、K列はファイルパス）
+    delayed_widths = [12, 14, 30, 25, 14, 14, 14, 14, 16, 16, 60]
     for i, w in enumerate(delayed_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
