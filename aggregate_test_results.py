@@ -437,11 +437,12 @@ class WizardApp(tk.Tk):
         self.include_subfolders = tk.BooleanVar(value=True)
         self.update_mode = tk.StringVar(value="new")  # "new" or "update"
 
-        # 週集計範囲（From/To）- デフォルトでFrom=7日前、To=今日を設定
+        # 週集計範囲（From/To）- デフォルトで今週の月曜〜金曜を設定
         today = datetime.now()
-        week_ago = today - timedelta(days=7)
-        self.week_from = tk.StringVar(value=week_ago.strftime("%Y/%m/%d"))
-        self.week_to = tk.StringVar(value=today.strftime("%Y/%m/%d"))
+        monday = today - timedelta(days=today.weekday())
+        friday = monday + timedelta(days=4)
+        self.week_from = tk.StringVar(value=monday.strftime("%Y/%m/%d"))
+        self.week_to = tk.StringVar(value=friday.strftime("%Y/%m/%d"))
 
         # 欠陥一覧ファイル（チーム別）
         self.defect_files = {
