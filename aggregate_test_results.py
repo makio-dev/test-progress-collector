@@ -68,6 +68,10 @@ COL_KEKKA_RETEST  = 16  # P列: 実施結果（再テスト）
 COL_DEFECT_NOTE   = 22  # V列: 欠陥内容／備考
 DATA_START_ROW = 19
 
+# キャッシュのスキーマ版。レコード構造（収集する列）を変えたらインクリメントする。
+# 値が変わると旧キャッシュは無効化され、全ファイルが再読込される。
+CACHE_VERSION = 2
+
 # --- シート単位情報（ケース共通） ---
 COL_TEST_PERSON = 20      # T列（担当者名）
 ROW_TEST_EXECUTOR = 7     # T7: テスト実施者
@@ -1178,7 +1182,10 @@ def load_cache(cache_file):
     if cache_file and os.path.exists(cache_file):
         try:
             with open(cache_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+                data = json.load(f)
+            # スキーマ版が一致しない（収集する列が変わった）場合は破棄して全再読込
+            if isinstance(data, dict) and data.get('_cache_version') == CACHE_VERSION:
+                return data
         except Exception:
             pass
     return {}
@@ -1188,6 +1195,7 @@ def save_cache(cache_file, cache_data):
     """キャッシュファイルを保存する"""
     if cache_file:
         try:
+            cache_data = {**cache_data, '_cache_version': CACHE_VERSION}
             with open(cache_file, 'w', encoding='utf-8') as f:
                 json.dump(cache_data, f, ensure_ascii=False, indent=2)
         except Exception:
