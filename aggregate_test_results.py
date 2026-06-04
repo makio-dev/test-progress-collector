@@ -63,6 +63,9 @@ COL_JISSHI_YOTEI   = 17  # Q列: 実施者 予定
 COL_JISSHI_JISSEKI  = 18  # R列: 実施者 実績
 COL_KENSHO_YOTEI   = 19  # S列: 検証者 予定
 COL_KENSHO_JISSEKI  = 20  # T列: 検証者 実績
+COL_KEKKA_FIRST   = 15  # O列: 実施結果（初回）
+COL_KEKKA_RETEST  = 16  # P列: 実施結果（再テスト）
+COL_DEFECT_NOTE   = 22  # V列: 欠陥内容／備考
 DATA_START_ROW = 19
 
 # --- シート単位情報（ケース共通） ---
@@ -1358,6 +1361,9 @@ def collect_data(folder_paths, cache_file=None, include_subfolders=True):
                     jisshi_jisseki = ws.cell(row=row, column=COL_JISSHI_JISSEKI).value
                     kensho_yotei   = ws.cell(row=row, column=COL_KENSHO_YOTEI).value
                     kensho_jisseki = ws.cell(row=row, column=COL_KENSHO_JISSEKI).value
+                    kekka_first    = ws.cell(row=row, column=COL_KEKKA_FIRST).value
+                    kekka_retest   = ws.cell(row=row, column=COL_KEKKA_RETEST).value
+                    defect_note    = ws.cell(row=row, column=COL_DEFECT_NOTE).value
 
                     record = {
                         "ファイル名": filepath,  # フルパスで記録
@@ -1370,6 +1376,9 @@ def collect_data(folder_paths, cache_file=None, include_subfolders=True):
                         "検証者_実績": _to_date(kensho_jisseki),
                         "テスト実施者": test_executor,
                         "テスト検証者": test_verifier,
+                        "実施結果_初回": str(kekka_first).strip() if kekka_first else "",
+                        "実施結果_再テスト": str(kekka_retest).strip() if kekka_retest else "",
+                        "欠陥内容_備考": str(defect_note).strip() if defect_note else "",
                     }
                     file_records.append(record)
                     case_count += 1
@@ -3000,7 +3009,7 @@ def _write_detail_sheet(ws, records):
     ws.sheet_view.showGridLines = False
 
     # タイトル (A1)
-    ws.merge_cells('A1:N1')
+    ws.merge_cells('A1:Q1')
     title_cell = ws['A1']
     title_cell.value = "テスト進捗明細"
     title_cell.font = TITLE_FONT
@@ -3028,6 +3037,7 @@ def _write_detail_sheet(ws, records):
         "検証者_予定", "検証者_実績", "検証者_状況",
         "進捗状況",
         "テスト実施者", "テスト検証者",
+        "実施結果（初回）", "実施結果（再テスト）", "欠陥内容／備考",
     ]
 
     for col, header in enumerate(detail_headers, 1):
@@ -3070,6 +3080,9 @@ def _write_detail_sheet(ws, records):
             overall_status,
             rec.get("テスト実施者", ""),
             rec.get("テスト検証者", ""),
+            rec.get("実施結果_初回", ""),
+            rec.get("実施結果_再テスト", ""),
+            rec.get("欠陥内容_備考", ""),
         ]
 
         for col, val in enumerate(values, 1):
@@ -3079,7 +3092,7 @@ def _write_detail_sheet(ws, records):
 
             if col == 1:
                 cell.alignment = DATA_ALIGN_CENTER
-            elif col in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14):
+            elif col in (4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16):
                 cell.alignment = DATA_ALIGN_CENTER
             else:
                 cell.alignment = DATA_ALIGN_LEFT
@@ -3090,7 +3103,7 @@ def _write_detail_sheet(ws, records):
 
     # テーブル作成
     if records:
-        table_ref = f"A{header_row}:N{data_start_row + len(records) - 1}"
+        table_ref = f"A{header_row}:Q{data_start_row + len(records) - 1}"
         table = Table(displayName="明細テーブル", ref=table_ref)
         style = TableStyleInfo(
             name="TableStyleMedium2",
@@ -3150,7 +3163,7 @@ def _write_detail_sheet(ws, records):
     )
 
     # 列幅設定
-    detail_widths = [6, 60, 18, 12, 16, 12, 12, 10, 12, 12, 10, 13, 16, 16]  # M,N列はテスト実施者・検証者
+    detail_widths = [6, 60, 18, 12, 16, 12, 12, 10, 12, 12, 10, 13, 16, 16, 14, 16, 40]  # O,P,Q列は実施結果(初回/再テスト)・欠陥内容/備考
     for i, w in enumerate(detail_widths, 1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
