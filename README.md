@@ -363,6 +363,76 @@ EXEファイルをダブルクリックすると、ウィザード形式のGUI�
 | 明細 | 全テストケースの詳細 |
 | 祝日マスタ | 祝日一覧（編集可能） |
 
+## PB曲線の生成（generate_pb_curve.py）
+
+`generate_pb_curve.py` は、本ツールと同じ入力データから **PB曲線（信頼度成長曲線）** を生成する独立スクリプトです。1枚のグラフに次の2系統を重ねて、テストの進み具合と欠陥の出方を一目で評価できます。
+
+- **P系（テスト消化）**: 未実施テストケースの残数バーンダウン（計画・実績）。`実施者_実績` をベースに集計。
+- **B系（欠陥検出）**: 欠陥の累積検出数（実績・計画）、目標レンジ（ピンク帯）、基準日以降の予測。欠陥詳細の `発見日` をベースに集計。
+
+### 特徴：生成後にExcel上で編集 → 自動再計算
+
+生成されるExcelは **数式駆動** です。`入力データ`・`欠陥データ` シートは元データをコピーした編集可能リストで、グラフはこれらを直接参照しています。
+特定の欠陥を集計から外したい場合は、**`欠陥データ` シートの該当行を削除して再オープンするだけ** で、累積欠陥カーブとグラフが自動的に再計算されます（係数や基準日も `パラメータ` シートで直接編集可能）。
+
+### 使い方（CLI）
+
+```bash
+# 基本（係数・基準日は既定値＝前営業日／写真の係数）
+python generate_pb_curve.py ./input -o ./output/pb_curve.xlsx
+
+# 欠陥一覧ファイルを指定（B系を集計するために必要）
+python generate_pb_curve.py ./input -o ./output/pb_curve.xlsx \
+    --defect-online ./input/defects/欠陥一覧_オンライン.xlsx \
+    --defect-batch  ./input/defects/欠陥一覧_バッチ.xlsx \
+    --defect-infra  ./input/defects/欠陥一覧_基盤.xlsx \
+    --defect-ops    ./input/defects/欠陥一覧_運用.xlsx
+
+# 基準日・期間・B系係数・予測倍率を指定
+python generate_pb_curve.py ./input -o ./output/pb_curve.xlsx \
+    --pivot-date 2026-06-12 --start-date 2026-04-13 --end-date 2026-09-04 \
+    --b-final-rate 0.0105 --b-lower-rate 0.0035 --b-upper-rate 0.0213 \
+    --forecast-mult 0.0224
+```
+
+| オプション | 既定値 | 説明 |
+|------------|--------|------|
+| `-o, --output` | `./output/pb_curve.xlsx` | 出力ファイルパス |
+| `--no-subfolders` | （再帰する） | サブフォルダを探索しない |
+| `--pivot-date` | 前営業日 | 基準日。実績はこの日まで描画、以降は予測 |
+| `--start-date` / `--end-date` | データの最小/最大日 | 分析対象期間 |
+| `--b-final-rate` | `0.0105` | B系最終計画 係数（テストケース数×この値＝最終計画欠陥数） |
+| `--b-lower-rate` / `--b-upper-rate` | `0.0035` / `0.0213` | B系目標帯の下限/上限 係数 |
+| `--forecast-mult` | 実績から自動算出 | 基準日以降の欠陥発生見込み（欠陥/ケース） |
+| `--total-case` | 収集件数 | テストケース総数 |
+| `--defect-online/-batch/-infra/-ops` | なし | 欠陥一覧ファイル（チーム別） |
+
+### 生成シート構成
+
+| シート名 | 区分 | 内容 |
+|----------|------|------|
+| パラメータ | 入力（編集可） | 開始日/終了日/基準日/テストケース総数/B系係数/予測倍率。`B_Plan_Final` 等は係数からの数式 |
+| 入力データ | 入力（編集可） | テストケースの実施予定日・実績日（P系の元データ） |
+| 欠陥データ | 入力（編集可） | 欠陥の発見日（B系の元データ）。行削除で集計除外 |
+| P_シリーズ | 参照計算 | 日次の予定/実績消化・未実施残数（COUNTIFS/SUM） |
+| B_シリーズ | 参照計算 | 日次の検出/累積/目標帯/予測 |
+| グラフ | 参照計算 | PB曲線（P系=左軸／B系=右軸、ピンク帯は目標レンジ） |
+
+### EXE化（既存ツールと同名・別build）
+
+ウィルス検査を通過させるため、**出力EXE名は既存ツールと同じ `aggregate_test_results.exe`** にします。本体EXEを上書きしないよう、`--name` と `--distpath` で **別フォルダに同名出力** します。
+
+```powershell
+pip install pyinstaller
+
+# PB曲線ジェネレータを「aggregate_test_results.exe」という名前で dist_pb に出力
+pyinstaller --onefile --windowed --name aggregate_test_results --distpath dist_pb generate_pb_curve.py
+# → dist_pb\aggregate_test_results.exe（本体の dist\aggregate_test_results.exe とは別フォルダ・同名）
+```
+
+- 配布時は本体EXEと **別フォルダ** に置いてください（同一フォルダには同名で共存できません）。
+- `generate_pb_curve.py` は `aggregate_test_results.py` の収集関数を import して再利用するため、ビルド時に同モジュールも自動的に取り込まれます。
+
 ## ライセンス
 
 MIT License
