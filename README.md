@@ -433,6 +433,18 @@ pyinstaller --onefile --windowed --name aggregate_test_results --distpath dist_p
 - 配布時は本体EXEと **別フォルダ** に置いてください（同一フォルダには同名で共存できません）。
 - `generate_pb_curve.py` は `aggregate_test_results.py` の収集関数を import して再利用するため、ビルド時に同モジュールも自動的に取り込まれます。
 
+#### EXEの使い方（GUI / CLI 両対応）
+
+本体ツールと同様、1つのEXEでGUIモードとCLIモードに対応しています。
+
+- **GUIモード**: EXEを **ダブルクリック** すると入力フォルダ・出力先・欠陥一覧・基準日・B系係数を指定するウィンドウが開きます（`--windowed` でビルドしてもGUIは表示されます）。
+- **CLIモード**: コマンドプロンプト/PowerShellから引数付きで実行するとCLIで動作します。
+
+```powershell
+.\dist_pb\aggregate_test_results.exe .\input -o .\output\pb_curve.xlsx `
+    --defect-online .\input\defects\欠陥一覧_オンライン.xlsx
+```
+
 ## ライセンス
 
 MIT License

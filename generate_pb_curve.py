@@ -567,7 +567,105 @@ def generate(folder_paths, output_path, include_subfolders=True, defect_files=No
     return output_path
 
 
+def run_gui():
+    """引数なし起動（EXEダブルクリック等）向けの簡易GUI。
+
+    フォルダ・出力先・欠陥ファイル・基準日・B系係数を指定して生成する。
+    """
+    import tkinter as tk
+    from tkinter import filedialog, messagebox
+
+    root = tk.Tk()
+    root.title("PB曲線 生成")
+    root.geometry("680x520")
+
+    pad = {"padx": 6, "pady": 3}
+    vars_ = {}
+
+    def row(label, r, default="", browse=None):
+        tk.Label(root, text=label, anchor="w", width=18).grid(row=r, column=0, sticky="w", **pad)
+        v = tk.StringVar(value=default)
+        e = tk.Entry(root, textvariable=v, width=58)
+        e.grid(row=r, column=1, sticky="w", **pad)
+        if browse:
+            tk.Button(root, text="参照", command=lambda: browse(v)).grid(row=r, column=2, **pad)
+        return v
+
+    def pick_dir(v):
+        d = filedialog.askdirectory()
+        if d:
+            v.set(d)
+
+    def pick_save(v):
+        f = filedialog.asksaveasfilename(defaultextension=".xlsx",
+                                         filetypes=[("Excel", "*.xlsx")])
+        if f:
+            v.set(f)
+
+    def pick_file(v):
+        f = filedialog.askopenfilename(filetypes=[("Excel", "*.xlsx *.xlsm"), ("すべて", "*.*")])
+        if f:
+            v.set(f)
+
+    r = 0
+    tk.Label(root, text="PB曲線（信頼度成長曲線）生成", font=("", 13, "bold")).grid(
+        row=r, column=0, columnspan=3, sticky="w", padx=6, pady=8); r += 1
+    vars_["folder"] = row("入力フォルダ *", r, browse=pick_dir); r += 1
+    vars_["output"] = row("出力ファイル", r, default="pb_curve.xlsx", browse=pick_save); r += 1
+    vars_["d_online"] = row("欠陥一覧(オンライン)", r, browse=pick_file); r += 1
+    vars_["d_batch"] = row("欠陥一覧(バッチ)", r, browse=pick_file); r += 1
+    vars_["d_infra"] = row("欠陥一覧(基盤)", r, browse=pick_file); r += 1
+    vars_["d_ops"] = row("欠陥一覧(運用)", r, browse=pick_file); r += 1
+    vars_["pivot"] = row("基準日(空欄=前営業日)", r, default=""); r += 1
+    vars_["start"] = row("開始日(空欄=自動)", r, default=""); r += 1
+    vars_["end"] = row("終了日(空欄=自動)", r, default=""); r += 1
+    vars_["fr"] = row("B系 最終計画係数", r, default=str(DEFAULT_B_FINAL_RATE)); r += 1
+    vars_["lr"] = row("B系 下限係数", r, default=str(DEFAULT_B_LOWER_RATE)); r += 1
+    vars_["ur"] = row("B系 上限係数", r, default=str(DEFAULT_B_UPPER_RATE)); r += 1
+    sub = tk.BooleanVar(value=True)
+    tk.Checkbutton(root, text="サブフォルダも探索する", variable=sub).grid(
+        row=r, column=1, sticky="w", **pad); r += 1
+
+    def on_run():
+        folder = vars_["folder"].get().strip()
+        if not folder:
+            messagebox.showerror("エラー", "入力フォルダを指定してください。")
+            return
+        defect_files = {}
+        for key, team in (("d_online", "オンライン"), ("d_batch", "バッチ"),
+                          ("d_infra", "基盤"), ("d_ops", "運用")):
+            p = vars_[key].get().strip()
+            if p and os.path.exists(p):
+                defect_files[team] = p
+        try:
+            out = generate(
+                folder_paths=[folder],
+                output_path=vars_["output"].get().strip() or "pb_curve.xlsx",
+                include_subfolders=sub.get(),
+                defect_files=defect_files or None,
+                pivot_date=_parse_cli_date(vars_["pivot"].get().strip() or None),
+                start_date=_parse_cli_date(vars_["start"].get().strip() or None),
+                end_date=_parse_cli_date(vars_["end"].get().strip() or None),
+                b_final_rate=float(vars_["fr"].get()),
+                b_lower_rate=float(vars_["lr"].get()),
+                b_upper_rate=float(vars_["ur"].get()),
+            )
+            messagebox.showinfo("完了", f"出力しました:\n{os.path.abspath(out)}")
+        except Exception as e:
+            messagebox.showerror("エラー", f"生成に失敗しました:\n{e}")
+
+    tk.Button(root, text="生成", width=16, command=on_run).grid(
+        row=r, column=1, sticky="w", padx=6, pady=12)
+
+    root.mainloop()
+
+
 def main():
+    # 引数なし起動（EXEダブルクリック等）はGUIを表示する
+    if len(sys.argv) <= 1:
+        run_gui()
+        return
+
     parser = argparse.ArgumentParser(description="PB曲線（信頼度成長曲線）生成スクリプト")
     parser.add_argument("folder", nargs="*", help="対象フォルダパス（複数指定可）")
     parser.add_argument("-o", "--output", default="./output/pb_curve.xlsx",
