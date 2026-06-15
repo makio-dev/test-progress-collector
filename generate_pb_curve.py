@@ -617,7 +617,7 @@ def run_gui():
 
     root = tk.Tk()
     root.title("PB曲線 生成")
-    root.geometry("720x380")
+    # サイズは内容に合わせて自動決定（後段で reqwidth/reqheight から設定）
 
     pad = {"padx": 6, "pady": 3}
     vars_ = {}
@@ -678,6 +678,14 @@ def run_gui():
 
     tk.Button(root, text="生成", width=16, command=on_run).grid(
         row=r, column=1, sticky="w", padx=6, pady=12)
+
+    # ウィンドウを内容の必要サイズ（幅・高さ両方）にフィットさせる。
+    # 固定サイズにせず reqwidth/reqheight を使うことで、Windows/DPI差でも全要素が収まる。
+    root.update_idletasks()
+    w = root.winfo_reqwidth() + 24
+    h = root.winfo_reqheight() + 24
+    root.geometry(f"{w}x{h}")
+    root.minsize(w, h)  # 内容より小さく縮められないようにする
 
     root.mainloop()
 
