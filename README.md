@@ -400,7 +400,21 @@ python generate_pb_curve.py ./output/dashboard.xlsx -o ./output/pb_curve.xlsx \
     --pivot-date 2026-06-12 --start-date 2026-04-13 --end-date 2026-09-04 \
     --b-final-rate 0.0105 --b-lower-rate 0.0035 --b-upper-rate 0.0213 \
     --forecast-mult 0.0224
+
+# 全オプションを明示的に指定するフル実行例（コピペ用）
+python generate_pb_curve.py ./output/dashboard.xlsx \
+    --output ./output/pb_curve.xlsx \
+    --pivot-date 2026-06-12 \
+    --start-date 2026-04-13 \
+    --end-date 2026-09-04 \
+    --b-final-rate 0.0105 \
+    --b-lower-rate 0.0035 \
+    --b-upper-rate 0.0213 \
+    --forecast-mult 0.0224 \
+    --total-case 338
 ```
+
+> Windows（PowerShell）で改行して書く場合は、行末の `\` をバッククォート `` ` `` に置き換えてください。1行で書く場合は `\` を付けずに続けて記述します。
 
 第1引数に **ダッシュボードExcelのパス** を渡します。
 
