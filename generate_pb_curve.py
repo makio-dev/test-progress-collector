@@ -29,7 +29,7 @@ from datetime import datetime, date
 import openpyxl
 from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill, Alignment
-from openpyxl.chart import LineChart, AreaChart, Reference
+from openpyxl.chart import LineChart, AreaChart, BarChart, Reference
 from openpyxl.chart.series import SeriesLabel
 from openpyxl.chart.axis import ChartLines
 from openpyxl.chart.legend import LegendEntry
@@ -388,13 +388,15 @@ def write_p_series_sheet(ws, dates, input_start, input_end):
     ws["A1"] = "P_シリーズ（テスト消化）"
     ws["A1"].font = TITLE_FONT
     headers = ["日付", "P予定日次", "P実績日次", "P予定累計", "P実績累計",
-               "P未実施計画", "P未実施実績"]
+               "P未実施計画", "P未実施実績", "基準日線"]
     for col, h in enumerate(headers, 1):
         ws.cell(row=2, column=col, value=h)
     _style_header_row(ws, 2, len(headers))
 
-    plan_col = f"入力データ!$D${input_start}:$D${input_end}"
-    act_col = f"入力データ!$E${input_start}:$E${input_end}"
+    # 列全体を参照する（行の追加・削除どちらも自動反映させるため）。
+    # D1/D2 はタイトル・ヘッダーで日付ではないので日付条件のCOUNTIFSには影響しない。
+    plan_col = "入力データ!$D:$D"
+    act_col = "入力データ!$E:$E"
 
     data_start = 3
     for i, dt in enumerate(dates):
@@ -411,6 +413,8 @@ def write_p_series_sheet(ws, dates, input_start, input_end):
         ws.cell(row=r, column=6, value=f"={P_TOTAL}-$D{r}")
         # G: P未実施実績 = 基準日まで TotalCase - 実績累計、以降 NA()
         ws.cell(row=r, column=7, value=f"=IF($A{r}<={P_PIVOT},{P_TOTAL}-$E{r},NA())")
+        # H: 基準日線 = 基準日の行だけ TotalCase（縦線マーカー用）、他は NA()
+        ws.cell(row=r, column=8, value=f"=IF($A{r}={P_PIVOT},{P_TOTAL},NA())")
         for col in range(1, len(headers) + 1):
             cell = ws.cell(row=r, column=col)
             cell.border = THIN
@@ -418,7 +422,7 @@ def write_p_series_sheet(ws, dates, input_start, input_end):
                 cell.number_format = "#,##0"
     data_end = data_start + len(dates) - 1
     ws.column_dimensions["A"].width = 9
-    for col in "BCDEFG":
+    for col in "BCDEFGH":
         ws.column_dimensions[col].width = 11
     ws.freeze_panes = "B3"
     return data_start, data_end
@@ -439,8 +443,10 @@ def write_b_series_sheet(ws, dates, defect_start, defect_end, pivot_row, defect_
         ws.cell(row=2, column=col, value=h)
     _style_header_row(ws, 2, len(headers))
 
+    # 列全体を参照する（欠陥行の追加・削除どちらも自動反映させるため）。
+    # 発見日列の見出し・タイトルは日付ではないので日付条件のCOUNTIFSには影響しない。
     dcl = get_column_letter(defect_date_col)
-    det_col = f"欠陥データ!${dcl}${defect_start}:${dcl}${defect_end}"
+    det_col = f"欠陥データ!${dcl}:${dcl}"
 
     data_start = 3
     for i, dt in enumerate(dates):
@@ -501,6 +507,65 @@ def _axis_text(sz):
     font = DrawingFont(typeface="ＭＳ Ｐゴシック")
     cp = CharacterProperties(latin=font, sz=sz)
     return RichText(p=[Paragraph(pPr=ParagraphProperties(defRPr=cp), endParaRPr=cp)])
+
+
+def write_graph_legend(ws, start_row):
+    """グラフ下に「各線が示すもの」を色見本付きで説明する凡例テーブルを書く。
+
+    チャート内蔵の凡例は色と名前だけで意味が伝わりづらいため、別途このテーブルで
+    各系列の「色・線種・軸・意味」を日本語で明示する。
+    """
+    r = start_row
+    ws.cell(row=r, column=2, value="■ 凡例（各線が示すもの）").font = Font(
+        name="游ゴシック", size=12, bold=True)
+    r += 1
+    ws.cell(row=r, column=2,
+            value="左の縦軸 ＝ P系（未実施テストケース数） ／ 右の縦軸 ＝ B系（欠陥数） ／ "
+                  "横軸 ＝ 日付（基準日より右は予測区間）").font = Font(
+        name="游ゴシック", size=9, color="555555")
+    r += 1
+
+    head = ["", "色", "系列", "線種", "軸", "意味"]
+    for c, h in enumerate(head, 1):
+        cell = ws.cell(row=r, column=c, value=h)
+        if h:
+            cell.fill = HEADER_FILL
+            cell.font = HEADER_FONT
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+            cell.border = THIN
+    r += 1
+
+    rows = [
+        (COLOR_P_ACTUAL, "P未実施（実績〜基準日）", "実線（太）", "左",
+         "未実施テストケースの残数（実績）。赤の計画線より上なら消化が遅れ気味。"),
+        (COLOR_P_PLAN, "P未実施（計画）", "破線", "左",
+         "未実施テストケースの残数（計画）。予定どおり消化すれば右肩下がりでゼロへ。"),
+        (COLOR_B_ACTUAL, "B実績（〜基準日）", "実線（太）", "右",
+         "実際に検出した累積欠陥数（基準日まで）。"),
+        (COLOR_B_PLAN, "B計画", "破線", "右",
+         "累積欠陥数の計画。消化進捗に比例し、最終的にテストケース数×係数へ到達。"),
+        (COLOR_B_FORECAST, "B予測", "点線", "右",
+         "基準日以降の欠陥見込み（基準日までの実績ペースを外挿）。"),
+        (COLOR_BAND, "B目標レンジ", "帯（塗り）", "右",
+         "欠陥数の目標帯（下限〜上限係数）。B実績がこの帯に収まっていれば健全。"),
+    ]
+    for color, name, style, axis, mean in rows:
+        sw = ws.cell(row=r, column=2)
+        sw.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        ws.cell(row=r, column=3, value=name).font = Font(name="游ゴシック", size=10, bold=True)
+        ws.cell(row=r, column=4, value=style)
+        ws.cell(row=r, column=5, value=axis)
+        ws.cell(row=r, column=6, value=mean)
+        for c in range(2, 7):
+            cell = ws.cell(row=r, column=c)
+            cell.border = THIN
+            cell.alignment = Alignment(
+                vertical="center",
+                horizontal="center" if c in (4, 5) else "left")
+        r += 1
+
+    for col, w in {"B": 6, "C": 22, "D": 12, "E": 5, "F": 64}.items():
+        ws.column_dimensions[col].width = w
 
 
 def write_graph_sheet(ws, p_ws, b_ws, p_start, p_end, b_start, b_end):
@@ -575,9 +640,10 @@ def write_graph_sheet(ws, p_ws, b_ws, p_start, p_end, b_start, b_end):
     b_chart.y_axis.crosses = "max"
 
     # --- P系ライン（主軸・左・最前面） ---
+    # 実績(黒・太)を先に描き、計画(赤・破線)を後に描く＝計画が前面で隠れない
     p_chart = LineChart()
-    _line_series(p_chart, p_ws, 6, p_start, p_end, "P未実施(計画)", COLOR_P_PLAN, dash="sysDash", width=19050)  # F
-    _line_series(p_chart, p_ws, 7, p_start, p_end, "P未実施(実績〜基準日)", COLOR_P_ACTUAL, width=28575)        # G 実績=太
+    _line_series(p_chart, p_ws, 7, p_start, p_end, "P未実施(実績〜基準日)", COLOR_P_ACTUAL, width=28575)        # G 実績=太（背面）
+    _line_series(p_chart, p_ws, 6, p_start, p_end, "P未実施(計画)", COLOR_P_PLAN, dash="sysDash", width=19050)  # F 計画（前面）
     p_chart.set_categories(cats)
     p_chart.y_axis.axId = 100
     p_chart.y_axis.title = "未実施テストケース数（P系）"
@@ -588,17 +654,34 @@ def write_graph_sheet(ws, p_ws, b_ws, p_start, p_end, b_start, b_end):
         spPr=GraphicalProperties(ln=LineProperties(solidFill="D9D9D9", w=9525))
     )
 
+    # --- 基準日マーカー（薄いグレーの細い縦棒。主軸=左で全高に届く） ---
+    # 基準日の列だけ TotalCase の値を持つ棒。控えめに見せるためグレー＋細め。
+    marker = BarChart()
+    marker.type = "col"
+    mref = Reference(p_ws, min_col=8, min_row=p_start, max_row=p_end)  # H: 基準日線
+    marker.add_data(mref, titles_from_data=False)
+    marker.series[0].tx = SeriesLabel(v="基準日")
+    marker.series[0].graphicalProperties.solidFill = "BFBFBF"  # 薄いグレー
+    marker.series[0].graphicalProperties.line.noFill = True
+    marker.set_categories(cats)
+    marker.gapWidth = 30   # 細い縦線に見せる
+    marker.y_axis.axId = 100
+
     # プロット領域を明示（凡例・軸ラベルのための余白確保）
     band.layout = Layout(manualLayout=ManualLayout(
         layoutTarget="inner", xMode="edge", yMode="edge", wMode="factor", hMode="factor",
         x=0.07, y=0.12, w=0.86, h=0.70,
     ))
 
-    # 帯(背面) → B系ライン → P系ライン(前面) の順に重ねる
+    # 帯(背面) → 基準日マーカー → B系ライン → P系ライン(前面) の順に重ねる
+    band += marker
     band += b_chart
     band += p_chart
 
     ws.add_chart(band, "A3")
+
+    # グラフの下に「各線の意味」を説明する凡例テーブルを置く
+    write_graph_legend(ws, 31)
 
 
 # ===================================================================
