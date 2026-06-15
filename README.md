@@ -423,12 +423,25 @@ python generate_pb_curve.py ./input -o ./output/pb_curve.xlsx \
 ウィルス検査を通過させるため、**出力EXE名は既存ツールと同じ `aggregate_test_results.exe`** にします。本体EXEを上書きしないよう、`--name` と `--distpath` で **別フォルダに同名出力** します。
 
 ```powershell
+# 依存ライブラリ（openpyxl 等）を必ず先に入れる。これが無いと EXE が起動時に
+# 「No module named 'openpyxl'」で異常終了します
+pip install -r requirements.txt
 pip install pyinstaller
 
 # PB曲線ジェネレータを「aggregate_test_results.exe」という名前で dist_pb に出力
 pyinstaller --onefile --windowed --name aggregate_test_results --distpath dist_pb generate_pb_curve.py
 # → dist_pb\aggregate_test_results.exe（本体の dist\aggregate_test_results.exe とは別フォルダ・同名）
 ```
+
+> **⚠️ 起動時に `No module named 'openpyxl'` で落ちる場合**
+> PyInstaller は **ビルドした環境にインストール済みのモジュールだけ** をEXEに同梱します。
+> `pyinstaller` を実行するPython環境に `openpyxl` が入っていないと同梱されず、EXE起動時に失敗します。
+> 上記のとおり **`pip install -r requirements.txt` を先に実行** してから作り直してください。
+> 念のため hidden-import を明示する場合は次のように指定します（※本質は上記の依存導入。hidden-import 単体では解決しません）:
+> ```powershell
+> pyinstaller --onefile --windowed --name aggregate_test_results --distpath dist_pb `
+>     --hidden-import openpyxl --hidden-import et_xmlfile generate_pb_curve.py
+> ```
 
 - 配布時は本体EXEと **別フォルダ** に置いてください（同一フォルダには同名で共存できません）。
 - `generate_pb_curve.py` は `aggregate_test_results.py` の収集関数を import して再利用するため、ビルド時に同モジュールも自動的に取り込まれます。
