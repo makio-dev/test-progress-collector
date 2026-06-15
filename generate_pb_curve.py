@@ -1,20 +1,21 @@
 """PB曲線（信頼度成長曲線）生成スクリプト
 
-test-progress-collector が扱うテストケース／欠陥データから、
+本体ツール（aggregate_test_results.py）が出力した **ダッシュボードExcel** を入力とし、
 PB曲線（P系=テスト消化バーンダウン ＋ B系=欠陥検出）を1枚に重ねた
 Excelを自動生成する独立ツール。
 
-データ抽出は aggregate_test_results.py の収集関数を再利用する。
+入力ダッシュボードからは次のシートを読む:
+- 「明細」シート: 実施者_予定 / 実施者_実績 → P系
+- 「欠陥詳細_ALL」（無ければ「欠陥詳細_*」全チーム）: 発見日 → B系
+
 生成するExcelは「数式駆動」で、入力面シート（パラメータ／入力データ／欠陥データ）を
 Excel上で編集すると、計算シリーズとグラフが自動的に再計算される。
 
 使い方:
-    python generate_pb_curve.py <folder...> -o ./output/pb_curve.xlsx \
+    python generate_pb_curve.py <dashboard.xlsx> -o ./output/pb_curve.xlsx \
         [--pivot-date YYYY-MM-DD] [--start-date ...] [--end-date ...] \
         [--b-final-rate 0.0105] [--b-lower-rate 0.0035] [--b-upper-rate 0.0213] \
-        [--forecast-mult 0.0224] [--total-case N] \
-        [--defect-online path] [--defect-batch path] \
-        [--defect-infra path] [--defect-ops path] [--no-subfolders]
+        [--forecast-mult 0.0224] [--total-case N]
 
 EXE化（既存ツールと同名・別build）:
     pyinstaller --onefile --windowed --name aggregate_test_results \
@@ -96,36 +97,82 @@ def _rec_date(val):
     return agg._to_date_obj(val)
 
 
-def build_cases(records):
-    """テストケースの入力リストを構築（P系の元データ）
+# ダッシュボードExcel（aggregate_test_results.py の出力）のシート/列定義
+DASH_DETAIL_SHEET = "明細"
+DASH_DETAIL_HEADER_ROW = 4       # データはこの次の行から
+DASH_DETAIL_COL_TEAM = 4         # D: チーム名
+DASH_DETAIL_COL_ID = 5           # E: テストID
+DASH_DETAIL_COL_PLAN = 6         # F: 実施者_予定
+DASH_DETAIL_COL_ACTUAL = 7       # G: 実施者_実績
 
-    Returns: list of dict(テストID, チーム名, 予定:date|None, 実績:date|None)
+DASH_DEFECT_SHEET_ALL = "欠陥詳細_ALL"
+DASH_DEFECT_SHEET_PREFIX = "欠陥詳細_"
+DASH_DEFECT_HEADER_ROW = 3       # データはこの次の行から
+DASH_DEFECT_COL_TEAM = 1         # A: チーム名
+DASH_DEFECT_COL_ID = 2           # B: 欠陥ID
+DASH_DEFECT_COL_TITLE = 4        # D: 件名
+DASH_DEFECT_COL_DATE = 5         # E: 発見日
+
+
+def read_dashboard(dashboard_path):
+    """ダッシュボードExcel（本体ツールの出力）から P系・B系の元データを読む。
+
+    - P系: 「明細」シートの 実施者_予定 / 実施者_実績
+    - B系: 「欠陥詳細_ALL」（無ければ「欠陥詳細_*」全チーム）の 発見日
+
+    Returns: (cases, defects)
+      cases  = list of dict(テストID, チーム名, 予定:date|None, 実績:date|None)
+      defects= list of dict(欠陥ID, チーム名, 発見日:date|None, 件名)
     """
+    if not os.path.exists(dashboard_path):
+        raise ValueError(f"ファイルが見つかりません: {dashboard_path}")
+
+    wb = openpyxl.load_workbook(dashboard_path, data_only=True)
+
+    # --- P系: 明細シート ---
+    if DASH_DETAIL_SHEET not in wb.sheetnames:
+        wb.close()
+        raise ValueError(
+            f"「{DASH_DETAIL_SHEET}」シートが見つかりません。"
+            f"本体ツール（aggregate_test_results）のダッシュボードExcelを指定してください。")
+
+    ws = wb[DASH_DETAIL_SHEET]
     cases = []
-    for r in records:
+    for row in range(DASH_DETAIL_HEADER_ROW + 1, ws.max_row + 1):
+        test_id = ws.cell(row=row, column=DASH_DETAIL_COL_ID).value
+        if test_id in (None, ""):
+            continue
         cases.append({
-            "テストID": r.get("テストID", ""),
-            "チーム名": r.get("チーム名", ""),
-            "予定": _rec_date(r.get("実施者_予定")),
-            "実績": _rec_date(r.get("実施者_実績")),
+            "テストID": test_id,
+            "チーム名": ws.cell(row=row, column=DASH_DETAIL_COL_TEAM).value or "",
+            "予定": _rec_date(ws.cell(row=row, column=DASH_DETAIL_COL_PLAN).value),
+            "実績": _rec_date(ws.cell(row=row, column=DASH_DETAIL_COL_ACTUAL).value),
         })
-    return cases
 
+    # --- B系: 欠陥詳細シート（ALL優先、無ければチーム別を合算） ---
+    defect_sheets = []
+    if DASH_DEFECT_SHEET_ALL in wb.sheetnames:
+        defect_sheets = [DASH_DEFECT_SHEET_ALL]
+    else:
+        defect_sheets = [s for s in wb.sheetnames
+                         if s.startswith(DASH_DEFECT_SHEET_PREFIX)]
 
-def build_defects(defect_detail_records):
-    """欠陥の入力リストを構築（B系の元データ）
-
-    Returns: list of dict(欠陥ID, チーム名, 発見日:date|None, 件名)
-    """
     defects = []
-    for r in defect_detail_records:
-        defects.append({
-            "欠陥ID": r.get("欠陥ID", ""),
-            "チーム名": r.get("チーム名", ""),
-            "発見日": _rec_date(r.get("発見日")),
-            "件名": r.get("件名", ""),
-        })
-    return defects
+    for sname in defect_sheets:
+        dws = wb[sname]
+        for row in range(DASH_DEFECT_HEADER_ROW + 1, dws.max_row + 1):
+            defect_id = dws.cell(row=row, column=DASH_DEFECT_COL_ID).value
+            if defect_id in (None, ""):
+                continue
+            defects.append({
+                "欠陥ID": defect_id,
+                "チーム名": dws.cell(row=row, column=DASH_DEFECT_COL_TEAM).value or "",
+                "発見日": _rec_date(dws.cell(row=row, column=DASH_DEFECT_COL_DATE).value),
+                "件名": dws.cell(row=row, column=DASH_DEFECT_COL_TITLE).value or "",
+            })
+
+    wb.close()
+    return cases, defects
 
 
 def resolve_period(cases, pivot, start_override, end_override):
@@ -508,24 +555,17 @@ def write_graph_sheet(ws, p_ws, b_ws, p_start, p_end, b_start, b_end):
 # ===================================================================
 #  メイン処理
 # ===================================================================
-def generate(folder_paths, output_path, include_subfolders=True, defect_files=None,
+def generate(dashboard_path, output_path,
              pivot_date=None, start_date=None, end_date=None,
              b_final_rate=DEFAULT_B_FINAL_RATE, b_lower_rate=DEFAULT_B_LOWER_RATE,
              b_upper_rate=DEFAULT_B_UPPER_RATE, forecast_mult=None, total_case=None):
-    """PB曲線Excelを生成する"""
+    """PB曲線Excelを生成する（入力＝本体ツールのダッシュボードExcel）"""
     print("=== PB曲線生成 ===")
-    print("テストケースを収集中...")
-    records = agg.collect_data(folder_paths, cache_file=None,
-                               include_subfolders=include_subfolders)
-    cases = build_cases(records)
-    print(f"  テストケース: {len(cases)}件")
-
-    defect_detail_records = []
-    if defect_files:
-        print("欠陥詳細を収集中...")
-        defect_detail_records = agg.collect_defect_detail_data(defect_files)
-    defects = build_defects(defect_detail_records)
-    print(f"  欠陥: {len(defects)}件")
+    print(f"ダッシュボードを読み込み中: {dashboard_path}")
+    cases, defects = read_dashboard(dashboard_path)
+    print(f"  テストケース(明細): {len(cases)}件 / 欠陥(欠陥詳細): {len(defects)}件")
+    if not cases:
+        raise ValueError("「明細」シートにテストケースが1件もありません。")
 
     # 基準日（前営業日）
     if pivot_date is None:
@@ -570,20 +610,20 @@ def generate(folder_paths, output_path, include_subfolders=True, defect_files=No
 def run_gui():
     """引数なし起動（EXEダブルクリック等）向けの簡易GUI。
 
-    フォルダ・出力先・欠陥ファイル・基準日・B系係数を指定して生成する。
+    ダッシュボードExcel・出力先・基準日・B系係数を指定して生成する。
     """
     import tkinter as tk
     from tkinter import filedialog, messagebox
 
     root = tk.Tk()
     root.title("PB曲線 生成")
-    root.geometry("680x520")
+    root.geometry("720x380")
 
     pad = {"padx": 6, "pady": 3}
     vars_ = {}
 
     def row(label, r, default="", browse=None):
-        tk.Label(root, text=label, anchor="w", width=18).grid(row=r, column=0, sticky="w", **pad)
+        tk.Label(root, text=label, anchor="w", width=22).grid(row=r, column=0, sticky="w", **pad)
         v = tk.StringVar(value=default)
         e = tk.Entry(root, textvariable=v, width=58)
         e.grid(row=r, column=1, sticky="w", **pad)
@@ -591,10 +631,10 @@ def run_gui():
             tk.Button(root, text="参照", command=lambda: browse(v)).grid(row=r, column=2, **pad)
         return v
 
-    def pick_dir(v):
-        d = filedialog.askdirectory()
-        if d:
-            v.set(d)
+    def pick_open(v):
+        f = filedialog.askopenfilename(filetypes=[("Excel", "*.xlsx *.xlsm"), ("すべて", "*.*")])
+        if f:
+            v.set(f)
 
     def pick_save(v):
         f = filedialog.asksaveasfilename(defaultextension=".xlsx",
@@ -602,47 +642,29 @@ def run_gui():
         if f:
             v.set(f)
 
-    def pick_file(v):
-        f = filedialog.askopenfilename(filetypes=[("Excel", "*.xlsx *.xlsm"), ("すべて", "*.*")])
-        if f:
-            v.set(f)
-
     r = 0
     tk.Label(root, text="PB曲線（信頼度成長曲線）生成", font=("", 13, "bold")).grid(
         row=r, column=0, columnspan=3, sticky="w", padx=6, pady=8); r += 1
-    vars_["folder"] = row("入力フォルダ *", r, browse=pick_dir); r += 1
+    tk.Label(root, text="本体ツールが出力したダッシュボードExcelを指定してください。",
+             fg="#555").grid(row=r, column=0, columnspan=3, sticky="w", padx=6); r += 1
+    vars_["dashboard"] = row("ダッシュボードExcel *", r, browse=pick_open); r += 1
     vars_["output"] = row("出力ファイル", r, default="pb_curve.xlsx", browse=pick_save); r += 1
-    vars_["d_online"] = row("欠陥一覧(オンライン)", r, browse=pick_file); r += 1
-    vars_["d_batch"] = row("欠陥一覧(バッチ)", r, browse=pick_file); r += 1
-    vars_["d_infra"] = row("欠陥一覧(基盤)", r, browse=pick_file); r += 1
-    vars_["d_ops"] = row("欠陥一覧(運用)", r, browse=pick_file); r += 1
     vars_["pivot"] = row("基準日(空欄=前営業日)", r, default=""); r += 1
     vars_["start"] = row("開始日(空欄=自動)", r, default=""); r += 1
     vars_["end"] = row("終了日(空欄=自動)", r, default=""); r += 1
     vars_["fr"] = row("B系 最終計画係数", r, default=str(DEFAULT_B_FINAL_RATE)); r += 1
     vars_["lr"] = row("B系 下限係数", r, default=str(DEFAULT_B_LOWER_RATE)); r += 1
     vars_["ur"] = row("B系 上限係数", r, default=str(DEFAULT_B_UPPER_RATE)); r += 1
-    sub = tk.BooleanVar(value=True)
-    tk.Checkbutton(root, text="サブフォルダも探索する", variable=sub).grid(
-        row=r, column=1, sticky="w", **pad); r += 1
 
     def on_run():
-        folder = vars_["folder"].get().strip()
-        if not folder:
-            messagebox.showerror("エラー", "入力フォルダを指定してください。")
+        dashboard = vars_["dashboard"].get().strip()
+        if not dashboard:
+            messagebox.showerror("エラー", "ダッシュボードExcelを指定してください。")
             return
-        defect_files = {}
-        for key, team in (("d_online", "オンライン"), ("d_batch", "バッチ"),
-                          ("d_infra", "基盤"), ("d_ops", "運用")):
-            p = vars_[key].get().strip()
-            if p and os.path.exists(p):
-                defect_files[team] = p
         try:
             out = generate(
-                folder_paths=[folder],
+                dashboard_path=dashboard,
                 output_path=vars_["output"].get().strip() or "pb_curve.xlsx",
-                include_subfolders=sub.get(),
-                defect_files=defect_files or None,
                 pivot_date=_parse_cli_date(vars_["pivot"].get().strip() or None),
                 start_date=_parse_cli_date(vars_["start"].get().strip() or None),
                 end_date=_parse_cli_date(vars_["end"].get().strip() or None),
@@ -666,11 +688,12 @@ def main():
         run_gui()
         return
 
-    parser = argparse.ArgumentParser(description="PB曲線（信頼度成長曲線）生成スクリプト")
-    parser.add_argument("folder", nargs="*", help="対象フォルダパス（複数指定可）")
+    parser = argparse.ArgumentParser(
+        description="PB曲線（信頼度成長曲線）生成スクリプト（入力＝本体ツールのダッシュボードExcel）")
+    parser.add_argument("dashboard", nargs="?",
+                        help="本体ツールが出力したダッシュボードExcelのパス")
     parser.add_argument("-o", "--output", default="./output/pb_curve.xlsx",
                         help="出力ファイルパス（既定: ./output/pb_curve.xlsx）")
-    parser.add_argument("--no-subfolders", action="store_true", help="サブフォルダを再帰探索しない")
     parser.add_argument("--pivot-date", help="基準日 YYYY-MM-DD（既定: 前営業日）")
     parser.add_argument("--start-date", help="開始日 YYYY-MM-DD（既定: データ最小日）")
     parser.add_argument("--end-date", help="終了日 YYYY-MM-DD（既定: データ最大日）")
@@ -683,31 +706,18 @@ def main():
     parser.add_argument("--forecast-mult", type=float, default=None,
                         help="予測倍率（既定: 実績から自動算出）")
     parser.add_argument("--total-case", type=int, default=None,
-                        help="テストケース総数（既定: 収集件数）")
-    parser.add_argument("--defect-online", help="欠陥一覧ファイル（オンライン）")
-    parser.add_argument("--defect-batch", help="欠陥一覧ファイル（バッチ）")
-    parser.add_argument("--defect-infra", help="欠陥一覧ファイル（基盤）")
-    parser.add_argument("--defect-ops", help="欠陥一覧ファイル（運用）")
+                        help="テストケース総数（既定: 明細の件数）")
     args = parser.parse_args()
 
-    if not args.folder:
+    if not args.dashboard:
         parser.print_help()
-        print("\nエラー: 対象フォルダを1つ以上指定してください。")
+        print("\nエラー: ダッシュボードExcelのパスを指定してください。")
         sys.exit(1)
-
-    defect_files = {}
-    for key, team in (("defect_online", "オンライン"), ("defect_batch", "バッチ"),
-                      ("defect_infra", "基盤"), ("defect_ops", "運用")):
-        path = getattr(args, key)
-        if path and os.path.exists(path):
-            defect_files[team] = path
 
     try:
         generate(
-            folder_paths=args.folder,
+            dashboard_path=args.dashboard,
             output_path=args.output,
-            include_subfolders=not args.no_subfolders,
-            defect_files=defect_files or None,
             pivot_date=_parse_cli_date(args.pivot_date),
             start_date=_parse_cli_date(args.start_date),
             end_date=_parse_cli_date(args.end_date),

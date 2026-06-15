@@ -365,10 +365,12 @@ EXEファイルをダブルクリックすると、ウィザード形式のGUI�
 
 ## PB曲線の生成（generate_pb_curve.py）
 
-`generate_pb_curve.py` は、本ツールと同じ入力データから **PB曲線（信頼度成長曲線）** を生成する独立スクリプトです。1枚のグラフに次の2系統を重ねて、テストの進み具合と欠陥の出方を一目で評価できます。
+`generate_pb_curve.py` は、**本ツールが出力したダッシュボードExcel** を入力として **PB曲線（信頼度成長曲線）** を生成する独立スクリプトです。1枚のグラフに次の2系統を重ねて、テストの進み具合と欠陥の出方を一目で評価できます。
 
-- **P系（テスト消化）**: 未実施テストケースの残数バーンダウン（計画・実績）。`実施者_実績` をベースに集計。
-- **B系（欠陥検出）**: 欠陥の累積検出数（実績・計画）、目標レンジ（ピンク帯）、基準日以降の予測。欠陥詳細の `発見日` をベースに集計。
+- **P系（テスト消化）**: 未実施テストケースの残数バーンダウン（計画・実績）。ダッシュボードの **「明細」シート** の `実施者_予定` / `実施者_実績` をベースに集計。
+- **B系（欠陥検出）**: 欠陥の累積検出数（実績・計画）、目標レンジ（ピンク帯）、基準日以降の予測。ダッシュボードの **「欠陥詳細_ALL」シート**（無ければ「欠陥詳細_*」全チーム）の `発見日` をベースに集計。
+
+> 入力は **本体ツールのダッシュボードExcel 1ファイル** だけです（入力フォルダや欠陥一覧ファイルを個別に指定する必要はありません）。先に `aggregate_test_results` でダッシュボードを生成しておいてください。
 
 ### 特徴：生成後にExcel上で編集 → 自動再計算
 
@@ -378,34 +380,32 @@ EXEファイルをダブルクリックすると、ウィザード形式のGUI�
 ### 使い方（CLI）
 
 ```bash
-# 基本（係数・基準日は既定値＝前営業日／写真の係数）
-python generate_pb_curve.py ./input -o ./output/pb_curve.xlsx
+# 1) まず本体ツールでダッシュボードExcelを作る
+python aggregate_test_results.py ./input -o ./output/dashboard.xlsx \
+    --defect-online ./input/defects/欠陥一覧_オンライン.xlsx
 
-# 欠陥一覧ファイルを指定（B系を集計するために必要）
-python generate_pb_curve.py ./input -o ./output/pb_curve.xlsx \
-    --defect-online ./input/defects/欠陥一覧_オンライン.xlsx \
-    --defect-batch  ./input/defects/欠陥一覧_バッチ.xlsx \
-    --defect-infra  ./input/defects/欠陥一覧_基盤.xlsx \
-    --defect-ops    ./input/defects/欠陥一覧_運用.xlsx
+# 2) そのダッシュボードExcelを入力にPB曲線を生成（係数・基準日は既定値）
+python generate_pb_curve.py ./output/dashboard.xlsx -o ./output/pb_curve.xlsx
 
 # 基準日・期間・B系係数・予測倍率を指定
-python generate_pb_curve.py ./input -o ./output/pb_curve.xlsx \
+python generate_pb_curve.py ./output/dashboard.xlsx -o ./output/pb_curve.xlsx \
     --pivot-date 2026-06-12 --start-date 2026-04-13 --end-date 2026-09-04 \
     --b-final-rate 0.0105 --b-lower-rate 0.0035 --b-upper-rate 0.0213 \
     --forecast-mult 0.0224
 ```
 
+第1引数に **ダッシュボードExcelのパス** を渡します。
+
 | オプション | 既定値 | 説明 |
 |------------|--------|------|
+| `dashboard`（第1引数） | （必須） | 本体ツールが出力したダッシュボードExcelのパス |
 | `-o, --output` | `./output/pb_curve.xlsx` | 出力ファイルパス |
-| `--no-subfolders` | （再帰する） | サブフォルダを探索しない |
 | `--pivot-date` | 前営業日 | 基準日。実績はこの日まで描画、以降は予測 |
 | `--start-date` / `--end-date` | データの最小/最大日 | 分析対象期間 |
 | `--b-final-rate` | `0.0105` | B系最終計画 係数（テストケース数×この値＝最終計画欠陥数） |
 | `--b-lower-rate` / `--b-upper-rate` | `0.0035` / `0.0213` | B系目標帯の下限/上限 係数 |
 | `--forecast-mult` | 実績から自動算出 | 基準日以降の欠陥発生見込み（欠陥/ケース） |
-| `--total-case` | 収集件数 | テストケース総数 |
-| `--defect-online/-batch/-infra/-ops` | なし | 欠陥一覧ファイル（チーム別） |
+| `--total-case` | 明細の件数 | テストケース総数 |
 
 ### 生成シート構成
 
@@ -450,12 +450,11 @@ pyinstaller --onefile --windowed --name aggregate_test_results --distpath dist_p
 
 本体ツールと同様、1つのEXEでGUIモードとCLIモードに対応しています。
 
-- **GUIモード**: EXEを **ダブルクリック** すると入力フォルダ・出力先・欠陥一覧・基準日・B系係数を指定するウィンドウが開きます（`--windowed` でビルドしてもGUIは表示されます）。
-- **CLIモード**: コマンドプロンプト/PowerShellから引数付きで実行するとCLIで動作します。
+- **GUIモード**: EXEを **ダブルクリック** すると、ダッシュボードExcel・出力先・基準日・B系係数を指定するウィンドウが開きます（`--windowed` でビルドしてもGUIは表示されます）。
+- **CLIモード**: コマンドプロンプト/PowerShellから引数付きで実行するとCLIで動作します。第1引数はダッシュボードExcelです。
 
 ```powershell
-.\dist_pb\aggregate_test_results.exe .\input -o .\output\pb_curve.xlsx `
-    --defect-online .\input\defects\欠陥一覧_オンライン.xlsx
+.\dist_pb\aggregate_test_results.exe .\output\dashboard.xlsx -o .\output\pb_curve.xlsx
 ```
 
 ## ライセンス
