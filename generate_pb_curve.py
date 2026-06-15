@@ -27,6 +27,7 @@ import sys
 from datetime import datetime, date
 
 import openpyxl
+from openpyxl.utils import get_column_letter
 from openpyxl.styles import Font, PatternFill, Alignment
 from openpyxl.chart import LineChart, AreaChart, Reference
 from openpyxl.chart.series import SeriesLabel
@@ -97,6 +98,17 @@ def _rec_date(val):
     return agg._to_date_obj(val)
 
 
+def _find_col(headers, name):
+    """ヘッダー名（完全一致優先・部分一致フォールバック）から1-based列番号を返す。無ければNone"""
+    for i, h in enumerate(headers):
+        if h == name:
+            return i + 1
+    for i, h in enumerate(headers):
+        if h and name in str(h):
+            return i + 1
+    return None
+
+
 # ダッシュボードExcel（aggregate_test_results.py の出力）のシート/列定義
 DASH_DETAIL_SHEET = "明細"
 DASH_DETAIL_HEADER_ROW = 4       # データはこの次の行から
@@ -122,7 +134,8 @@ def read_dashboard(dashboard_path):
 
     Returns: (cases, defects)
       cases  = list of dict(テストID, チーム名, 予定:date|None, 実績:date|None)
-      defects= list of dict(欠陥ID, チーム名, 発見日:date|None, 件名)
+      defects= dict(headers:[全カラム名], rows:[[全カラム値], ...], date_col:発見日の1-based列番号)
+               ※ 欠陥詳細_ALL を全カラムそのまま保持し、人が除外判断できるようにする
     """
     if not os.path.exists(dashboard_path):
         raise ValueError(f"ファイルが見つかりません: {dashboard_path}")
@@ -149,28 +162,43 @@ def read_dashboard(dashboard_path):
             "実績": _rec_date(ws.cell(row=row, column=DASH_DETAIL_COL_ACTUAL).value),
         })
 
-    # --- B系: 欠陥詳細シート（ALL優先、無ければチーム別を合算） ---
-    defect_sheets = []
+    # --- B系: 欠陥詳細シート（ALL優先、無ければチーム別を合算）。全カラムをコピー ---
+    # 人が「特定の欠陥を除外する」判断ができるよう、欠陥詳細_ALL の全項目をそのまま保持する。
     if DASH_DEFECT_SHEET_ALL in wb.sheetnames:
         defect_sheets = [DASH_DEFECT_SHEET_ALL]
     else:
         defect_sheets = [s for s in wb.sheetnames
                          if s.startswith(DASH_DEFECT_SHEET_PREFIX)]
 
-    defects = []
+    defect_headers = []
+    defect_rows = []
+    id_col = None      # 欠陥ID列（行有効判定用, 1-based）
+    date_col = None    # 発見日列（B系COUNTIFS用, 1-based）
     for sname in defect_sheets:
         dws = wb[sname]
+        # ヘッダー行（最初の有効シートを正とする）。末尾の空ヘッダーは切り捨て
+        headers = [dws.cell(row=DASH_DEFECT_HEADER_ROW, column=c).value
+                   for c in range(1, dws.max_column + 1)]
+        while headers and headers[-1] in (None, ""):
+            headers.pop()
+        if not headers:
+            continue
+        if not defect_headers:
+            defect_headers = [h if h is not None else "" for h in headers]
+            id_col = _find_col(defect_headers, "欠陥ID") or DASH_DEFECT_COL_ID
+            date_col = _find_col(defect_headers, "発見日") or DASH_DEFECT_COL_DATE
+        ncol = len(defect_headers)
         for row in range(DASH_DEFECT_HEADER_ROW + 1, dws.max_row + 1):
-            defect_id = dws.cell(row=row, column=DASH_DEFECT_COL_ID).value
-            if defect_id in (None, ""):
-                continue
-            defects.append({
-                "欠陥ID": defect_id,
-                "チーム名": dws.cell(row=row, column=DASH_DEFECT_COL_TEAM).value or "",
-                "発見日": _rec_date(dws.cell(row=row, column=DASH_DEFECT_COL_DATE).value),
-                "件名": dws.cell(row=row, column=DASH_DEFECT_COL_TITLE).value or "",
-            })
+            if dws.cell(row=row, column=id_col).value in (None, ""):
+                continue  # 欠陥IDが空の行はスキップ
+            defect_rows.append(
+                [dws.cell(row=row, column=c).value for c in range(1, ncol + 1)])
 
+    defects = {
+        "headers": defect_headers,
+        "rows": defect_rows,
+        "date_col": date_col or DASH_DEFECT_COL_DATE,
+    }
     wb.close()
     return cases, defects
 
@@ -236,7 +264,8 @@ def write_param_sheet(ws, start, end, pivot, total_case,
         ("StartDate", start, "開始日", "分析対象期間の開始日"),
         ("EndDate", end, "終了日", "分析対象期間の終了日"),
         ("PivotDate", pivot, "基準日（ピボット日）", "PB曲線の評価基準日。実績はこの日まで描画する"),
-        ("TotalCase", total_case, "テストケース総数", "P系（消化バーンダウン）の対象件数"),
+        ("TotalCase", total_case, "テストケース総数",
+         "P系の対象件数（ダッシュボード総数と同義＝実施予定ありの明細のみ。予定なしは対象外）"),
         ("B_Plan_Final", f"={P_TOTAL}*{b_final_rate}", "B系最終計画値",
          f"テストケース数×{b_final_rate}（最終到達の計画欠陥数）"),
         ("B_Band_Lower", f"={P_TOTAL}*{b_lower_rate}", "B系目標帯（下限）",
@@ -305,34 +334,52 @@ def write_input_sheet(ws, cases):
 
 
 def write_defect_sheet(ws, defects):
-    """欠陥データシート（B系の元データ＝編集可能・行削除で除外可）。戻り値: (data_start, data_end)"""
-    ws.sheet_view.showGridLines = False
-    ws["A1"] = "欠陥データ（発見日）"
-    ws["A1"].font = TITLE_FONT
-    ws["D1"] = "※ 算出から除外したい欠陥は行ごと削除してください（グラフが自動再計算されます）"
-    ws["D1"].font = Font(name="游ゴシック", size=9, color="C00000")
-    headers = ["No", "欠陥ID", "チーム名", "発見日", "件名"]
-    for col, h in enumerate(headers, 1):
-        ws.cell(row=2, column=col, value=h)
-    _style_header_row(ws, 2, len(headers))
+    """欠陥データシート（B系の元データ＝ダッシュボードの欠陥詳細_ALLを全カラムそのままコピー）。
 
-    data_start = 3
-    for i, d in enumerate(defects):
+    人が「特定の欠陥を除外する」判断ができるよう全項目を保持する。行ごと削除すると
+    B系（発見日のCOUNTIFS）が自動的に減る。
+    戻り値: (data_start, data_end, date_col)  ※date_col=発見日の1-based列番号
+    """
+    ws.sheet_view.showGridLines = False
+    ws["A1"] = "欠陥データ（ダッシュボード 欠陥詳細_ALL の全項目コピー）"
+    ws["A1"].font = TITLE_FONT
+    ws["A2"] = "※ 算出から除外したい欠陥は行ごと削除してください（グラフが自動再計算されます）"
+    ws["A2"].font = Font(name="游ゴシック", size=9, color="C00000")
+
+    headers = defects["headers"]
+    rows = defects["rows"]
+    date_col = defects["date_col"]
+    ncol = len(headers)
+
+    header_row = 3
+    for col, h in enumerate(headers, 1):
+        ws.cell(row=header_row, column=col, value=h)
+    _style_header_row(ws, header_row, ncol)
+
+    data_start = header_row + 1
+    for i, vals in enumerate(rows):
         r = data_start + i
-        ws.cell(row=r, column=1, value=i + 1)
-        ws.cell(row=r, column=2, value=d["欠陥ID"])
-        ws.cell(row=r, column=3, value=d["チーム名"])
-        if d["発見日"]:
-            dc = ws.cell(row=r, column=4, value=d["発見日"])
-            dc.number_format = "yyyy/mm/dd"
-        ws.cell(row=r, column=5, value=d["件名"])
-        for col in range(1, len(headers) + 1):
-            ws.cell(row=r, column=col).border = THIN
-    data_end = data_start + len(defects) - 1 if defects else data_start
-    for col, w in zip("ABCDE", [6, 14, 12, 14, 40]):
-        ws.column_dimensions[col].width = w
-    ws.freeze_panes = "A3"
-    return data_start, max(data_end, data_start)
+        for col, v in enumerate(vals, 1):
+            cell = ws.cell(row=r, column=col, value=v)
+            cell.border = THIN
+            # 日付値は yyyy/mm/dd 表示・中央寄せ（bool は除外）
+            if isinstance(v, (datetime, date)) and not isinstance(v, bool):
+                cell.number_format = "yyyy/mm/dd"
+                cell.alignment = Alignment(horizontal="center", vertical="center")
+    data_end = data_start + len(rows) - 1 if rows else data_start
+
+    # 列幅（件名・横展開先は広め、日付/分類/原因/フェーズは中、他は標準）
+    for col in range(1, ncol + 1):
+        letter = get_column_letter(col)
+        h = str(headers[col - 1] or "")
+        if "件名" in h or "横展開先" in h:
+            ws.column_dimensions[letter].width = 30
+        elif any(k in h for k in ("日", "フェーズ", "分類", "原因")):
+            ws.column_dimensions[letter].width = 14
+        else:
+            ws.column_dimensions[letter].width = 12
+    ws.freeze_panes = ws.cell(row=data_start, column=1).coordinate
+    return data_start, max(data_end, data_start), date_col
 
 
 def write_p_series_sheet(ws, dates, input_start, input_end):
@@ -377,10 +424,11 @@ def write_p_series_sheet(ws, dates, input_start, input_end):
     return data_start, data_end
 
 
-def write_b_series_sheet(ws, dates, defect_start, defect_end, pivot_row):
+def write_b_series_sheet(ws, dates, defect_start, defect_end, pivot_row, defect_date_col):
     """B_シリーズ（日次の実績/計画/目標帯/予測）。すべて数式駆動。
 
     P_シリーズと同じ行配置（行3起点・同じ日付）であることが前提。
+    defect_date_col: 欠陥データシートの「発見日」列（1-based）。COUNTIFSの参照に使う。
     """
     ws.sheet_view.showGridLines = False
     ws["A1"] = "B_シリーズ（欠陥検出）"
@@ -391,7 +439,8 @@ def write_b_series_sheet(ws, dates, defect_start, defect_end, pivot_row):
         ws.cell(row=2, column=col, value=h)
     _style_header_row(ws, 2, len(headers))
 
-    det_col = f"欠陥データ!$D${defect_start}:$D${defect_end}"
+    dcl = get_column_letter(defect_date_col)
+    det_col = f"欠陥データ!${dcl}${defect_start}:${dcl}${defect_end}"
 
     data_start = 3
     for i, dt in enumerate(dates):
@@ -563,7 +612,7 @@ def generate(dashboard_path, output_path,
     print("=== PB曲線生成 ===")
     print(f"ダッシュボードを読み込み中: {dashboard_path}")
     cases, defects = read_dashboard(dashboard_path)
-    print(f"  テストケース(明細): {len(cases)}件 / 欠陥(欠陥詳細): {len(defects)}件")
+    print(f"  テストケース(明細): {len(cases)}件 / 欠陥(欠陥詳細): {len(defects['rows'])}件")
     if not cases:
         raise ValueError("「明細」シートにテストケースが1件もありません。")
 
@@ -574,7 +623,9 @@ def generate(dashboard_path, output_path,
     start, end, pivot = resolve_period(cases, pivot_date, start_date, end_date)
     dates = agg.generate_date_range(start, end)
     if total_case is None:
-        total_case = len(cases)
+        # ダッシュボードの「総数」と同じ定義：実施予定が入っている明細のみを母数とする
+        # （COUNTIFS(明細!実施予定, 日付) の合計 ＝ 実施予定ありの件数）
+        total_case = sum(1 for c in cases if c["予定"])
 
     # 基準日の行番号（P/B シリーズ共通、行3起点）
     pivot_idx = (pivot - start).days
@@ -596,9 +647,9 @@ def generate(dashboard_path, output_path,
     write_param_sheet(ws_param, start, end, pivot, total_case,
                       b_final_rate, b_lower_rate, b_upper_rate, forecast_mult, pivot_row)
     in_start, in_end = write_input_sheet(ws_input, cases)
-    df_start, df_end = write_defect_sheet(ws_defect, defects)
+    df_start, df_end, df_date_col = write_defect_sheet(ws_defect, defects)
     p_start, p_end = write_p_series_sheet(ws_p, dates, in_start, in_end)
-    b_start, b_end = write_b_series_sheet(ws_b, dates, df_start, df_end, pivot_row)
+    b_start, b_end = write_b_series_sheet(ws_b, dates, df_start, df_end, pivot_row, df_date_col)
     write_graph_sheet(ws_graph, ws_p, ws_b, p_start, p_end, b_start, b_end)
 
     os.makedirs(os.path.dirname(os.path.abspath(output_path)) or ".", exist_ok=True)
