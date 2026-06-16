@@ -70,12 +70,12 @@ KEY_FILL = PatternFill(start_color="D9E1F2", end_color="D9E1F2", fill_type="soli
 THIN = agg.THIN_BORDER
 
 # グラフ系列の色（互いに明確に区別できる配色）
-COLOR_P_PLAN = "E8000B"      # P未実施（計画）赤・破線
-COLOR_P_ACTUAL = "000000"    # P未実施（実績）黒・実線（太）
-COLOR_B_ACTUAL = "7030A0"    # B実績 紫・実線
-COLOR_B_PLAN = "00B050"      # B計画 緑・破線
-COLOR_B_FORECAST = "FF8C00"  # B予測 オレンジ・点線
-COLOR_BAND = "FCE4EC"        # B目標レンジ 薄ピンク
+COLOR_P_PLAN = "0070C0"      # テスト未実施（計画）青・破線
+COLOR_P_ACTUAL = "7030A0"    # テスト未実施（実績）紫・実線（太）
+COLOR_B_ACTUAL = "000000"    # 欠陥実績 黒・実線（太）
+COLOR_B_PLAN = "00B050"      # 欠陥中央値 緑・破線
+COLOR_B_FORECAST = "FF0000"  # 欠陥予測 赤・点線（太）＝重要指標
+COLOR_BAND = "FCE4EC"        # 欠陥目標レンジ 薄ピンク
 
 
 # ===================================================================
@@ -534,18 +534,18 @@ def write_graph_legend(ws, start_row):
     r += 1
 
     rows = [
-        (COLOR_P_ACTUAL, "P未実施（実績〜基準日）", "実線（太）", "左",
-         "未実施テストケースの残数（実績）。赤の計画線より上なら消化が遅れ気味。"),
-        (COLOR_P_PLAN, "P未実施（計画）", "破線", "左",
-         "未実施テストケースの残数（計画）。予定どおり消化すれば右肩下がりでゼロへ。"),
-        (COLOR_B_ACTUAL, "B実績（〜基準日）", "実線（太）", "右",
+        (COLOR_BAND, "欠陥目標レンジ", "帯（塗り）", "右",
+         "欠陥数の目標帯（下限〜上限係数）。欠陥実績がこの帯に収まっていれば健全。"),
+        (COLOR_B_ACTUAL, "欠陥実績", "実線（太）", "右",
          "実際に検出した累積欠陥数（基準日まで）。"),
-        (COLOR_B_PLAN, "B計画", "破線", "右",
-         "累積欠陥数の計画。消化進捗に比例し、最終的にテストケース数×係数へ到達。"),
-        (COLOR_B_FORECAST, "B予測", "点線", "右",
+        (COLOR_B_FORECAST, "欠陥予測", "点線（太）", "右",
          "基準日以降の欠陥見込み（基準日までの実績ペースを外挿）。"),
-        (COLOR_BAND, "B目標レンジ", "帯（塗り）", "右",
-         "欠陥数の目標帯（下限〜上限係数）。B実績がこの帯に収まっていれば健全。"),
+        (COLOR_B_PLAN, "欠陥中央値", "破線", "右",
+         "累積欠陥数の目標中央値。消化進捗に比例し、最終的にテストケース数×係数へ到達。"),
+        (COLOR_P_ACTUAL, "テスト未実施（実績）", "実線（太）", "左",
+         "未実施テストケースの残数（実績）。青の計画線より上なら消化が遅れ気味。"),
+        (COLOR_P_PLAN, "テスト未実施（計画）", "破線", "左",
+         "未実施テストケースの残数（計画）。予定どおり消化すれば右肩下がりでゼロへ。"),
     ]
     for color, name, style, axis, mean in rows:
         sw = ws.cell(row=r, column=2)
@@ -605,7 +605,7 @@ def write_graph_sheet(ws, p_ws, b_ws, p_start, p_end, b_start, b_end):
     # 帯はピンク塗り
     band.series[1].graphicalProperties.solidFill = COLOR_BAND
     band.series[1].graphicalProperties.line.noFill = True
-    band.series[1].tx = SeriesLabel(v="B目標レンジ")
+    band.series[1].tx = SeriesLabel(v="欠陥目標レンジ")
 
     # X軸（共有・カテゴリ＝日付）: ラベル間引き・短い日付書式・薄いフォント
     band.x_axis.delete = False
@@ -631,9 +631,10 @@ def write_graph_sheet(ws, p_ws, b_ws, p_start, p_end, b_start, b_end):
 
     # --- B系ライン（第2軸・右） ---
     b_chart = LineChart()
-    _line_series(b_chart, b_ws, 3, b_start, b_end, "B実績(〜基準日)", COLOR_B_ACTUAL, width=28575)  # C 実績=太
-    _line_series(b_chart, b_ws, 5, b_start, b_end, "B計画", COLOR_B_PLAN, dash="sysDash", width=15875)  # E
-    _line_series(b_chart, b_ws, 8, b_start, b_end, "B予測", COLOR_B_FORECAST, dash="sysDot", width=19050)  # H
+    # 下部凡例の順を「実績→予測→中央値」にするため、予測を中央値より先に描く
+    _line_series(b_chart, b_ws, 3, b_start, b_end, "欠陥実績", COLOR_B_ACTUAL, width=28575)  # C 実績=太
+    _line_series(b_chart, b_ws, 8, b_start, b_end, "欠陥予測", COLOR_B_FORECAST, dash="sysDot", width=28575)  # H 予測=赤・太（重要指標）
+    _line_series(b_chart, b_ws, 5, b_start, b_end, "欠陥中央値", COLOR_B_PLAN, dash="sysDash", width=15875)  # E
     b_chart.set_categories(cats)
     b_chart.y_axis.axId = 200
     b_chart.y_axis.crosses = "max"
@@ -641,8 +642,8 @@ def write_graph_sheet(ws, p_ws, b_ws, p_start, p_end, b_start, b_end):
     # --- P系ライン（主軸・左・最前面） ---
     # 実績(黒・太)を先に描き、計画(赤・破線)を後に描く＝計画が前面で隠れない
     p_chart = LineChart()
-    _line_series(p_chart, p_ws, 7, p_start, p_end, "P未実施(実績〜基準日)", COLOR_P_ACTUAL, width=28575)        # G 実績=太（背面）
-    _line_series(p_chart, p_ws, 6, p_start, p_end, "P未実施(計画)", COLOR_P_PLAN, dash="sysDash", width=19050)  # F 計画（前面）
+    _line_series(p_chart, p_ws, 7, p_start, p_end, "テスト未実施（実績）", COLOR_P_ACTUAL, width=28575)        # G 実績=太（背面）
+    _line_series(p_chart, p_ws, 6, p_start, p_end, "テスト未実施（計画）", COLOR_P_PLAN, dash="sysDash", width=19050)  # F 計画（前面）
     p_chart.set_categories(cats)
     p_chart.y_axis.axId = 100
     p_chart.y_axis.title = "未実施テストケース数（P系）"
